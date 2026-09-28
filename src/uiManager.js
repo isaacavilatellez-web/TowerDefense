@@ -20,7 +20,10 @@ export class UIManager {
 
   mount(game) {
     this.game = game;
-    this.selectedLevel = game.save.currentLevel || 1;
+    const maxLevel = game.levels.maxLevel();
+    const savedMapLevel = Math.min(maxLevel, game.save.mapLevel || game.save.currentLevel || 1);
+    const fallbackLevel = Math.min(maxLevel, game.save.currentLevel || 1);
+    this.selectedLevel = game.levels.isUnlocked(savedMapLevel) ? savedMapLevel : fallbackLevel;
     this.showMap();
   }
 
@@ -34,8 +37,10 @@ export class UIManager {
           <div class="resource-stack"><div class="resource special-resource"><span class="resource-icon">✦</span><strong class="crystal-value">${this.game.save.crystals}</strong><small>NÚCLEOS</small></div><div class="resource"><span class="resource-icon scrap-icon">◆</span><strong>${this.game.save.scrap}</strong><small>CHAPA</small></div><div class="resource"><span class="resource-icon tech-icon">✦</span><strong>${this.game.save.technology}</strong><small>TECH</small></div></div>
           ${this.game.save.settings?.developer ? '<span class="dev-indicator">DEV</span>' : ''}
         </header>
-        <section class="map-heading"><div><span class="eyebrow">RUTA DE SUPERVIVENCIA</span><h2>Conquista el mundo</h2><p>Avanza por el camino, supera cada defensa y desbloquea el siguiente sector.</p></div><div class="map-stat"><span class="pulse-dot"></span><span>SEÑAL ACTIVA</span></div></section>
-        <section class="world-track" id="world-track"></section>
+        <section class="map-scroll" id="map-scroll">
+          <section class="map-heading"><div><span class="eyebrow">RUTA DE SUPERVIVENCIA</span><h2>Conquista el mundo</h2><p>Avanza por el camino, supera cada defensa y desbloquea el siguiente sector.</p></div><div class="map-stat"><span class="pulse-dot"></span><span>SEÑAL ACTIVA</span></div></section>
+          <section class="world-track" id="world-track"></section>
+        </section>
         ${this.bottomNav('map')}
       </main>`;
     this.renderMapNodes();
@@ -62,12 +67,25 @@ export class UIManager {
     }
     track.innerHTML = html;
     track.querySelectorAll('.level-node.unlocked').forEach((button) => button.addEventListener('click', () => this.selectLevel(Number(button.dataset.level), false)));
-    const firstUnlocked = this.game.levels.isUnlocked(this.selectedLevel) ? this.selectedLevel : (this.game.save.currentLevel || 1);
+    const fallbackLevel = Math.min(this.game.levels.maxLevel(), this.game.save.currentLevel || 1);
+    const firstUnlocked = this.game.levels.isUnlocked(this.selectedLevel) ? this.selectedLevel : fallbackLevel;
     this.selectLevel(firstUnlocked, false);
-    if (this.mapFocusLevel === firstUnlocked) {
-      window.requestAnimationFrame(() => this.app.querySelector(`.level-node[data-level="${firstUnlocked}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' }));
-      this.mapFocusLevel = null;
-    }
+    // El mapa tiene su propio scroll. Ajustarlo aquí, de forma síncrona,
+    // evita pintar primero el nivel 30 y elimina el salto visible al entrar.
+    this.focusMapLevel(firstUnlocked, 'auto');
+    this.mapFocusLevel = null;
+  }
+
+  focusMapLevel(level, behavior = 'auto') {
+    const scroll = this.app.querySelector('#map-scroll');
+    const node = this.app.querySelector(`.level-node[data-level="${level}"]`);
+    if (!scroll || !node) return;
+    const scrollRect = scroll.getBoundingClientRect();
+    const nodeRect = node.getBoundingClientRect();
+    const nodeTop = nodeRect.top - scrollRect.top + scroll.scrollTop;
+    const target = nodeTop - (scroll.clientHeight - nodeRect.height) / 2;
+    const maxScroll = Math.max(0, scroll.scrollHeight - scroll.clientHeight);
+    scroll.scrollTo({ top: Math.max(0, Math.min(maxScroll, target)), behavior });
   }
 
   selectLevel(level, scroll = true) {
@@ -86,7 +104,7 @@ export class UIManager {
     card.querySelector('.level-card-close').addEventListener('click', (event) => { event.stopPropagation(); this.closeLevelCard(); });
     card.querySelector('.play-selected').addEventListener('click', () => this.game.startLevel(level));
     window.requestAnimationFrame(() => this.positionLevelCard(card, node, path));
-    if (scroll) node.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    if (scroll) this.focusMapLevel(level, 'smooth');
   }
 
   positionLevelCard(card, node, path) {
@@ -392,7 +410,7 @@ export class UIManager {
     const shellRect = this.app.querySelector('.battle-screen').getBoundingClientRect();
     if (node.dataset.type !== run.placingType) {
       node.dataset.type = run.placingType;
-      node.innerHTML = `<div class="drag-preview-card" style="--rarity-color:${tower.rarityColor}"><span class="drag-preview-art">${this.towerArt(tower.id)}</span><strong>${tower.name}</strong><small>NV.${run.placingLevel || 1} · ◆ ${tower.cost}</small></div>`;
+      node.innerHTML = `<div class="drag-preview-card" style="--rarity-color:${tower.rarityColor}"><span class="drag-preview-art">${this.towerArt(tower.id)}</span><strong>${tower.name}</strong><small>NV.${run.placingLevel || 1} · ◆ ${towerCost(tower.id, run.placingLevel || 1)}</small></div>`;
     }
     node.style.left = `${drag.clientX - shellRect.left}px`;
     node.style.top = `${drag.clientY - shellRect.top}px`;

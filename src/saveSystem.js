@@ -1,7 +1,9 @@
 const KEY = 'dead-sector-defense-save-v1';
+const MAX_LEVEL = 30;
 
 const DEFAULT_SAVE = {
   currentLevel: 1,
+  mapLevel: 1,
   completedLevels: [],
   stars: {},
   scrap: 0,
@@ -24,6 +26,12 @@ function normalizeSave(value) {
   return {
     ...freshSave(),
     ...data,
+    currentLevel: Number.isFinite(Number(data.currentLevel))
+      ? Math.min(MAX_LEVEL, Math.max(1, Math.floor(Number(data.currentLevel))))
+      : 1,
+    mapLevel: Number.isFinite(Number(data.mapLevel))
+      ? Math.min(MAX_LEVEL, Math.max(1, Math.floor(Number(data.mapLevel))))
+      : Math.min(MAX_LEVEL, Math.max(1, Math.floor(Number(data.currentLevel) || 1))),
     completedLevels: Array.isArray(data.completedLevels) ? data.completedLevels : [],
     stars: data.stars && typeof data.stars === 'object' ? data.stars : {},
     crystals: Number.isFinite(data.crystals) ? Math.max(0, Math.floor(data.crystals)) : 0,

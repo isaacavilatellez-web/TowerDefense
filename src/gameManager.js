@@ -32,6 +32,8 @@ export class GameManager {
   startLevel(level) {
     if (!this.levels.isUnlocked(level)) return;
     console.log('startGame', { level });
+    this.save.mapLevel = level;
+    SaveSystem.save(this.save);
     this.stopLoop();
     try {
       const meta = this.levels.getLevel(level);
@@ -181,13 +183,20 @@ export class GameManager {
   }
 
   returnToMap() {
-    const completedLevel = this.run?.result === 'victory' && !this.run.developerRun ? this.run.level : null;
+    const runLevel = this.run?.level;
+    const completedLevel = this.run?.result === 'victory' && !this.run.developerRun ? runLevel : null;
     this.stopLoop();
     this.run = null;
     if (completedLevel) {
-      this.ui.selectedLevel = completedLevel + 1;
-      this.ui.mapFocusLevel = completedLevel + 1;
+      const nextLevel = Math.min(this.levels.maxLevel(), completedLevel + 1);
+      this.save.mapLevel = nextLevel;
+      this.ui.selectedLevel = nextLevel;
+      this.ui.mapFocusLevel = nextLevel;
+    } else if (runLevel) {
+      this.save.mapLevel = runLevel;
+      this.ui.selectedLevel = runLevel;
     }
+    SaveSystem.save(this.save);
     this.ui.showMap();
   }
 }

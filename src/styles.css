@@ -779,3 +779,45 @@ body { display:grid; place-items:center; overflow:hidden; background:radial-grad
 .level-selection-card .primary-button { min-height:30px; padding:7px 5px; border:2px solid #a2a6a5; border-radius:9px; color:#13251d; background:#a8e98f; box-shadow:0 3px 0 #6f9f62; font-size:.53rem; font-weight:900; }
 .level-selection-card .primary-button span { display:none; }
 .level-selection-card .primary-button:active { transform:translateY(2px); box-shadow:0 1px 0 #6f9f62; }
+
+/* El mapa desplaza únicamente su recorrido; la cabecera queda fuera de ese
+   scroll y conserva una superficie opaca sobre los niveles. */
+.map-screen {
+  height:100dvh;
+  min-height:100dvh;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  padding:max(10px,env(safe-area-inset-top)) 12px 0;
+}
+.map-screen .map-topbar {
+  position:relative;
+  z-index:20;
+  flex:0 0 auto;
+  padding:10px 0 12px;
+  background:rgba(58,174,240,.98);
+  box-shadow:0 8px 18px rgba(34,105,91,.2);
+}
+.map-screen .map-scroll {
+  position:relative;
+  z-index:1;
+  flex:1 1 auto;
+  min-height:0;
+  overflow-x:hidden;
+  overflow-y:auto;
+  padding-bottom:calc(154px + env(safe-area-inset-bottom));
+  overscroll-behavior:contain;
+  scrollbar-width:thin;
+}
+
+@media (max-width:600px) {
+  .map-screen .map-topbar { gap:6px; }
+  .map-screen .map-topbar .brand-lockup { gap:5px; }
+  .map-screen .map-topbar .brand-mark { width:32px; height:32px; border-radius:10px; font-size:.9rem; }
+  .map-screen .map-topbar .brand-lockup h1 { font-size:1.2rem; }
+  .map-screen .map-topbar .resource-stack { gap:2px; }
+  .map-screen .map-topbar .resource { min-width:43px; padding:5px 3px; grid-template-columns:10px auto; gap:0 2px; }
+  .map-screen .map-topbar .resource-icon { font-size:.65rem; }
+  .map-screen .map-topbar .resource strong { font-size:.6rem; }
+  .map-screen .map-topbar .resource small { font-size:.3rem; }
+}

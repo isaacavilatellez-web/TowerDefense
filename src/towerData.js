@@ -21,5 +21,7 @@ export function getTowerStats(type, level, buffs = {}) {
 }
 
 export function towerCost(type, level = 1) {
-  return Math.round(GAME_CONFIG.towers[type].cost * Math.pow(1.55, level - 1));
+  // El nivel permanente mejora las estadísticas iniciales, pero no encarece
+  // la carta ni ninguna de las formas de comprarla durante la partida.
+  return GAME_CONFIG.towers[type]?.cost || 0;
 }
