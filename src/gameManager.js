@@ -38,13 +38,13 @@ export class GameManager {
       const map = MapGenerator.generate(level);
       const difficulty = getLevelDifficulty(level);
       const wavePlan = getWavePlan(level);
-      const developerRun = Boolean(this.save.settings?.developer && !this.levels.isNormallyUnlocked(level));
+      const developerRun = Boolean(this.save.settings?.developer);
       console.log('map generated', { points: map.points.length, buildSpots: map.buildSpots.length, obstacles: map.obstacles.length });
       this.run = {
         level, meta, map, developerRun,
         baseHp: GAME_CONFIG.levels.startingBaseHp, baseMaxHp: GAME_CONFIG.levels.startingBaseHp,
         coins: GAME_CONFIG.economy.startingCoins, clickerLevel: 1, autoCoins: 0, autoCoinTimer: 0,
-        clicks: 0, combo: 0, comboTimer: 0,
+        clicks: 0,
         towers: [], enemies: [], projectiles: [], nextEnemyId: 1,
         difficulty,
         wavePlan, phaseIndex: -1, phase: null, phaseSpawned: 0, phaseKills: 0, phaseLeaks: 0, phaseLabel: 'PREPARACIÓN', phaseTimer: 0, phaseCountdown: 0, waveNumber: 0,
@@ -97,7 +97,7 @@ export class GameManager {
     for (const projectile of this.run.projectiles) {
       projectile.life -= delta;
       if (projectile.life <= 0) {
-        this.enemies.hit(projectile.targetId, projectile.damage, projectile.splash, projectile.to);
+        this.enemies.hit(projectile.targetId, projectile.damage, projectile.splash, projectile.to, projectile);
         projectile.done = true;
       }
     }
@@ -180,5 +180,14 @@ export class GameManager {
     this.frame = null;
   }
 
-  returnToMap() { this.stopLoop(); this.run = null; this.ui.showMap(); }
+  returnToMap() {
+    const completedLevel = this.run?.result === 'victory' && !this.run.developerRun ? this.run.level : null;
+    this.stopLoop();
+    this.run = null;
+    if (completedLevel) {
+      this.ui.selectedLevel = completedLevel + 1;
+      this.ui.mapFocusLevel = completedLevel + 1;
+    }
+    this.ui.showMap();
+  }
 }

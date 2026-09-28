@@ -12,6 +12,11 @@ export function getTowerStats(type, level, buffs = {}) {
     cooldown: base.cooldown / (1 + (buffs.attack_speed || 0)),
     range: base.range * (1 + (buffs.range || 0)) * (1 + (level - 1) * 0.04),
     splash: base.splash * (1 + (buffs.cannon_splash || 0)),
+    chain: base.chain || 0,
+    chainRange: base.chainRange || 0,
+    chainDamage: base.chainDamage || 0,
+    slowFactor: base.slowFactor || 1,
+    slowDuration: base.slowDuration || 0,
   };
 }
 

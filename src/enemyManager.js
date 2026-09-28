@@ -22,8 +22,12 @@ export class EnemyManager {
         continue;
       }
       if (enemy.regen) enemy.hp = Math.min(enemy.maxHp, enemy.hp + enemy.maxHp * enemy.regen * seconds);
+      if (enemy.slowTimer > 0) {
+        enemy.slowTimer -= seconds;
+        if (enemy.slowTimer <= 0) enemy.slowFactor = 1;
+      }
       enemy.pulse += seconds;
-      enemy.progress += enemy.speed * seconds;
+      enemy.progress += enemy.speed * (enemy.slowFactor || 1) * seconds;
       if (enemy.progress >= 1) {
         enemy.alive = false;
         run.leaks += 1;
@@ -37,7 +41,7 @@ export class EnemyManager {
     run.enemies = run.enemies.filter((enemy) => enemy.alive || enemy.hp <= 0);
   }
 
-  hit(enemyId, damage, splash, origin) {
+  hit(enemyId, damage, splash, origin, effect = {}) {
     const run = this.game.run;
     const target = run.enemies.find((enemy) => enemy.id === enemyId && enemy.alive);
     if (!target) return;
@@ -49,6 +53,7 @@ export class EnemyManager {
     // La vida del enemigo rosa debe disminuir de forma monotónica: el escudo
     // absorbe daño, pero nunca restaura ni puede llevar la vida por debajo de 0.
     target.hp = Math.max(0, target.hp - actual);
+    this.applySlow(target, effect.slowFactor, effect.slowDuration);
     if (splash > 0) {
       for (const enemy of run.enemies) {
         if (!enemy.alive || enemy.id === target.id) continue;
@@ -59,7 +64,33 @@ export class EnemyManager {
         }
       }
     }
+    if (effect.chain > 0) this.chainHit(target, actual * (effect.chainDamage || 1), effect.chain, effect.chainRange || splash, effect);
     if (target.hp <= 0) this.kill(target);
+  }
+
+  applySlow(enemy, slowFactor, slowDuration) {
+    if (!enemy || !slowDuration || !slowFactor || slowFactor >= 1) return;
+    enemy.slowFactor = Math.min(enemy.slowFactor || 1, slowFactor);
+    enemy.slowTimer = Math.max(enemy.slowTimer || 0, slowDuration);
+  }
+
+  chainHit(source, damage, jumps, range, effect) {
+    let current = source;
+    const hitIds = new Set([source.id]);
+    for (let jump = 0; jump < jumps; jump += 1) {
+      const currentPosition = enemyPosition(current);
+      const next = this.game.run.enemies
+        .filter((enemy) => enemy.alive && !hitIds.has(enemy.id))
+        .map((enemy) => ({ enemy, distance: Math.hypot(enemyPosition(enemy).x - currentPosition.x, enemyPosition(enemy).y - currentPosition.y) }))
+        .filter((item) => item.distance <= range)
+        .sort((a, b) => a.distance - b.distance)[0]?.enemy;
+      if (!next) break;
+      hitIds.add(next.id);
+      next.hp = Math.max(0, next.hp - damage);
+      this.applySlow(next, effect.slowFactor, effect.slowDuration);
+      if (next.hp <= 0) this.kill(next);
+      current = next;
+    }
   }
 
   kill(enemy) {

@@ -12,7 +12,10 @@ export function createEnemy(kind, level, path, id) {
     hp,
     maxHp: hp,
     speed: base.speed * difficulty.enemySpeedMultiplier,
-    reward: Math.round(base.reward * (1 + level * 0.08)),
+    reward: Math.round(base.reward * (1 + Math.min(
+      GAME_CONFIG.economy.rewardLevelBonusCap,
+      Math.max(0, level - 1) * GAME_CONFIG.economy.rewardLevelStep,
+    ))),
     segmentLengths,
     pathLength: segmentLengths.reduce((sum, length) => sum + length, 0),
     color: base.color,
@@ -25,6 +28,8 @@ export function createEnemy(kind, level, path, id) {
     // tipo automáticamente para evitar que el enemigo rosa recupere vida sin
     // que exista una regla de diseño explícita.
     regen: base.regen || 0,
+    slowFactor: 1,
+    slowTimer: 0,
     pulse: 0,
   };
 }

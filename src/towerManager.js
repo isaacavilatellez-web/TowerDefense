@@ -7,9 +7,9 @@ export class TowerManager {
 
   buy(type) {
     if (this.game.run?.placingType) return false;
-    const cost = towerCost(type);
-    if (this.game.run.coins < cost) return false;
     const level = this.game.towerLevel(type);
+    const cost = towerCost(type, level);
+    if (this.game.run.coins < cost) return false;
     this.game.run.placingType = type;
     this.game.run.placingLevel = level;
     this.game.run.placementPreview = null;
@@ -33,7 +33,7 @@ export class TowerManager {
   place(point) {
     const run = this.game.run;
     if (!point || !run.placingType || !this.canPlaceAt(point)) return false;
-    const cost = towerCost(run.placingType);
+    const cost = towerCost(run.placingType, run.placingLevel || 1);
     if (run.coins < cost) return false;
     run.coins -= cost;
     const tower = { id: `tower-${Date.now()}-${Math.random()}`, type: run.placingType, level: run.placingLevel || 1, x: point.x, y: point.y, cooldown: 0, priority: 'first' };
@@ -66,15 +66,113 @@ export class TowerManager {
     }, Infinity)), Infinity);
   }
 
-  getPlacementValidation(point, type = this.game.run?.placingType) {
+  closestPathPoint(point) {
+    const paths = this.game.run?.map?.paths || [this.game.run?.map?.points || []];
+    let closest = null;
+    for (const path of paths) {
+      for (let index = 0; index < path.length - 1; index += 1) {
+        const start = path[index];
+        const end = path[index + 1];
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        const length = dx * dx + dy * dy || 1;
+        const t = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / length));
+        const candidate = { x: start.x + dx * t, y: start.y + dy * t };
+        const distance = Math.hypot(point.x - candidate.x, point.y - candidate.y);
+        if (!closest || distance < closest.distance) closest = { ...candidate, distance, start, end };
+      }
+    }
+    return closest;
+  }
+
+  getPlacementCollision(point, type = this.game.run?.placingType, ignoreIds = []) {
     const run = this.game.run;
-    if (!run || !point || !type) return { valid: false, reason: 'missing' };
+    if (!run || !point || !type) return { reason: 'missing', normal: { x: 0, y: -1 } };
     const { width, height } = GAME_CONFIG.map;
     const { pathClearance, towerSeparation, edgeMargin } = GAME_CONFIG.placement;
-    if (point.x < edgeMargin || point.x > width - edgeMargin || point.y < edgeMargin || point.y > height - edgeMargin) return { valid: false, reason: 'edge' };
-    if (this.distanceToPath(point) < pathClearance) return { valid: false, reason: 'path' };
-    if (run.towers.some((tower) => Math.hypot(tower.x - point.x, tower.y - point.y) < towerSeparation)) return { valid: false, reason: 'tower' };
-    return { valid: true, reason: 'terrain' };
+    const edgeHits = [
+      { hit: point.x < edgeMargin, normal: { x: 1, y: 0 } },
+      { hit: point.x > width - edgeMargin, normal: { x: -1, y: 0 } },
+      { hit: point.y < edgeMargin, normal: { x: 0, y: 1 } },
+      { hit: point.y > height - edgeMargin, normal: { x: 0, y: -1 } },
+    ].filter((item) => item.hit);
+    if (edgeHits.length) return { reason: 'edge', normal: edgeHits[0].normal };
+
+    const closest = this.closestPathPoint(point);
+    if (closest && closest.distance < pathClearance) {
+      let nx = point.x - closest.x;
+      let ny = point.y - closest.y;
+      const length = Math.hypot(nx, ny);
+      if (length < 0.001) {
+        const dx = closest.end.x - closest.start.x;
+        const dy = closest.end.y - closest.start.y;
+        const segmentLength = Math.hypot(dx, dy) || 1;
+        nx = -dy / segmentLength;
+        ny = dx / segmentLength;
+      } else {
+        nx /= length;
+        ny /= length;
+      }
+      return { reason: 'path', normal: { x: nx, y: ny }, closest };
+    }
+
+    const tower = run.towers.find((item) => !ignoreIds.includes(item.id) && Math.hypot(item.x - point.x, item.y - point.y) < towerSeparation);
+    if (tower) {
+      let nx = point.x - tower.x;
+      let ny = point.y - tower.y;
+      const length = Math.hypot(nx, ny) || 1;
+      return { reason: 'tower', normal: { x: nx / length, y: ny / length }, tower };
+    }
+    return null;
+  }
+
+  getPlacementValidation(point, type = this.game.run?.placingType) {
+    if (!this.game.run || !point || !type) return { valid: false, reason: 'missing' };
+    const collision = this.getPlacementCollision(point, type);
+    return collision ? { valid: false, reason: collision.reason } : { valid: true, reason: 'terrain' };
+  }
+
+  slidePlacement(start, desired, type = this.game.run?.placingType) {
+    if (!start || !desired) return null;
+    let current = { ...start };
+    for (let iteration = 0; iteration < 220; iteration += 1) {
+      const remaining = { x: desired.x - current.x, y: desired.y - current.y };
+      const remainingDistance = Math.hypot(remaining.x, remaining.y);
+      if (remainingDistance < 0.5) break;
+      const travel = Math.min(5, remainingDistance);
+      const unit = { x: remaining.x / remainingDistance, y: remaining.y / remainingDistance };
+      const step = { x: unit.x * travel, y: unit.y * travel };
+      const candidate = { x: current.x + step.x, y: current.y + step.y };
+      if (this.getPlacementValidation(candidate, type).valid) {
+        current = candidate;
+        continue;
+      }
+      const collision = this.getPlacementCollision(candidate, type);
+      if (!collision) continue;
+      let low = 0;
+      let high = 1;
+      for (let iteration = 0; iteration < 6; iteration += 1) {
+        const middle = (low + high) / 2;
+        const probe = { x: current.x + step.x * middle, y: current.y + step.y * middle };
+        if (this.getPlacementValidation(probe, type).valid) low = middle;
+        else high = middle;
+      }
+      current = { x: current.x + step.x * low, y: current.y + step.y * low };
+      const outward = { x: current.x + collision.normal.x * 0.8, y: current.y + collision.normal.y * 0.8 };
+      if (this.getPlacementValidation(outward, type).valid) current = outward;
+      let tangent = { x: -collision.normal.y, y: collision.normal.x };
+      const tangentDistance = remaining.x * tangent.x + remaining.y * tangent.y;
+      if (Math.abs(tangentDistance) < 0.01) break;
+      if (tangentDistance < 0) tangent = { x: -tangent.x, y: -tangent.y };
+      const tangentTravel = Math.min(travel, Math.abs(tangentDistance));
+      const tangentPosition = { x: current.x + tangent.x * tangentTravel, y: current.y + tangent.y * tangentTravel };
+      if (this.getPlacementValidation(tangentPosition, type).valid) {
+        current = tangentPosition;
+      } else if (this.getPlacementValidation({ x: current.x + tangent.x * tangentTravel * 0.5, y: current.y + tangent.y * tangentTravel * 0.5 }, type).valid) {
+        current = { x: current.x + tangent.x * tangentTravel * 0.5, y: current.y + tangent.y * tangentTravel * 0.5 };
+      }
+    }
+    return this.getPlacementValidation(current, type).valid ? current : null;
   }
 
   findNearestValidPosition(point, type = this.game.run?.placingType) {
@@ -112,7 +210,7 @@ export class TowerManager {
     const target = run.towers.find((item) => item.id === targetId);
     const level = run.placingLevel || 1;
     if (!run.placingType || run.placingType !== type || !target || target.type !== type || target.level !== level) return false;
-    const cost = towerCost(type);
+    const cost = towerCost(type, level);
     if (run.coins < cost) return false;
     run.coins -= cost;
     const sourceLevel = target.level;
@@ -157,6 +255,6 @@ export class TowerManager {
 
   fire(tower, target, stats) {
     const position = enemyPosition(target);
-    this.game.run.projectiles.push({ from: { x: tower.x, y: tower.y }, to: position, targetId: target.id, towerType: tower.type, damage: stats.damage, splash: stats.splash, life: 0.16, maxLife: 0.16 });
+    this.game.run.projectiles.push({ from: { x: tower.x, y: tower.y }, to: position, targetId: target.id, towerType: tower.type, damage: stats.damage, splash: stats.splash, chain: stats.chain, chainRange: stats.chainRange, chainDamage: stats.chainDamage, slowFactor: stats.slowFactor, slowDuration: stats.slowDuration, life: 0.16, maxLife: 0.16 });
   }
 }

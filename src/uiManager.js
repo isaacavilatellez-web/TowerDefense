@@ -36,10 +36,12 @@ export class UIManager {
         </header>
         <section class="map-heading"><div><span class="eyebrow">RUTA DE SUPERVIVENCIA</span><h2>Conquista el mundo</h2><p>Avanza por el camino, supera cada defensa y desbloquea el siguiente sector.</p></div><div class="map-stat"><span class="pulse-dot"></span><span>SEÑAL ACTIVA</span></div></section>
         <section class="world-track" id="world-track"></section>
-        <section class="selected-level-dock" id="selected-level-dock"></section>
         ${this.bottomNav('map')}
       </main>`;
     this.renderMapNodes();
+    this.app.querySelector('.map-screen').addEventListener('pointerdown', (event) => {
+      if (!event.target.closest('.level-node, .level-selection-card')) this.closeLevelCard();
+    });
     this.bindNav();
   }
 
@@ -59,11 +61,13 @@ export class UIManager {
       html += '</div></section>';
     }
     track.innerHTML = html;
-    track.querySelectorAll('.level-node.unlocked').forEach((button) => button.addEventListener('click', () => this.selectLevel(Number(button.dataset.level))));
-    track.querySelectorAll('[data-start-level]').forEach((button) => button.addEventListener('click', (event) => { event.stopPropagation(); this.game.startLevel(Number(button.dataset.startLevel)); }));
+    track.querySelectorAll('.level-node.unlocked').forEach((button) => button.addEventListener('click', () => this.selectLevel(Number(button.dataset.level), false)));
     const firstUnlocked = this.game.levels.isUnlocked(this.selectedLevel) ? this.selectedLevel : (this.game.save.currentLevel || 1);
     this.selectLevel(firstUnlocked, false);
-    window.requestAnimationFrame(() => this.app.querySelector(`.level-node[data-level="${firstUnlocked}"]`)?.scrollIntoView({ behavior: 'auto', block: 'center' }));
+    if (this.mapFocusLevel === firstUnlocked) {
+      window.requestAnimationFrame(() => this.app.querySelector(`.level-node[data-level="${firstUnlocked}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' }));
+      this.mapFocusLevel = null;
+    }
   }
 
   selectLevel(level, scroll = true) {
@@ -71,13 +75,37 @@ export class UIManager {
     this.selectedLevel = level;
     this.app.querySelectorAll('.level-node').forEach((node) => node.classList.toggle('current', Number(node.dataset.level) === level));
     const meta = this.game.levels.getLevel(level);
-    const completed = this.game.save.completedLevels.includes(level);
-    const stars = this.game.save.stars[level] || 0;
-    const dock = this.app.querySelector('#selected-level-dock');
-    if (!dock) return;
-    dock.innerHTML = `<div><div class="dock-title"><span class="dock-level">${level}</span><div><span class="eyebrow">${completed ? 'SECTOR SUPERADO' : 'SIGUIENTE MISIÓN'}</span><h3>Nivel ${level} · ${meta.name}</h3><p>${meta.world.name} · ${meta.world.subtitle}</p></div></div><div class="dock-stats"><span>👾 ${meta.zombies} enemigos</span><span>★ ${stars || '—'}/3</span><span>◆ +${meta.reward}</span></div></div><button class="primary-button start-selected">${completed ? 'REPETIR NIVEL' : 'INICIAR PARTIDA'} <span>→</span></button>`;
-    dock.querySelector('.start-selected').addEventListener('click', () => this.game.startLevel(level));
-    if (scroll) dock.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    this.closeLevelCard();
+    const node = this.app.querySelector(`.level-node[data-level="${level}"]`);
+    const path = node?.closest('.level-path');
+    if (!node || !path) return;
+    const card = document.createElement('aside');
+    card.className = 'level-selection-card';
+    card.innerHTML = `<button class="level-card-close" aria-label="Cerrar">×</button><span class="level-card-number">${level}</span><strong>${meta.name}</strong><button class="primary-button play-selected">JUGAR NIVEL</button>`;
+    path.append(card);
+    card.querySelector('.level-card-close').addEventListener('click', (event) => { event.stopPropagation(); this.closeLevelCard(); });
+    card.querySelector('.play-selected').addEventListener('click', () => this.game.startLevel(level));
+    window.requestAnimationFrame(() => this.positionLevelCard(card, node, path));
+    if (scroll) node.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+  }
+
+  positionLevelCard(card, node, path) {
+    const nodeRect = node.getBoundingClientRect();
+    const pathRect = path.getBoundingClientRect();
+    const cardWidth = card.getBoundingClientRect().width;
+    const gap = 12;
+    const rightPosition = nodeRect.right - pathRect.left + gap;
+    const leftPosition = nodeRect.left - pathRect.left - cardWidth - gap;
+    const fitsRight = rightPosition + cardWidth <= pathRect.width - 8;
+    const fitsLeft = leftPosition >= 8;
+    const left = fitsRight ? rightPosition : fitsLeft ? leftPosition : Math.max(8, Math.min(pathRect.width - cardWidth - 8, rightPosition));
+    card.dataset.side = fitsRight ? 'right' : 'left';
+    card.style.left = `${left}px`;
+    card.style.top = `${nodeRect.top - pathRect.top + nodeRect.height / 2}px`;
+  }
+
+  closeLevelCard() {
+    this.app?.querySelector('.level-selection-card')?.remove();
   }
 
   worldProgress(world) {
@@ -192,6 +220,18 @@ export class UIManager {
     const run = this.game.run;
     console.log('showBattle', { level: run?.level, mapReady: Boolean(run?.map) });
     this.app.innerHTML = `<main class="app-shell battle-screen"><header class="battle-header"><button class="icon-button back-map">‹</button><div class="battle-title"><span class="eyebrow">MUNDO ${run.meta.world.id} · ${run.meta.world.name}</span><h1>NIVEL ${String(run.level).padStart(2, '0')} <span class="live-badge"><i></i>EN VIVO</span></h1></div><div class="battle-progress"><div class="battle-progress-top"><strong>NIVEL ${run.level}</strong><b class="progress-value">0%</b></div><div class="progress-track"><i class="wave-progress"></i><span class="progress-marker marker-10"></span><span class="progress-marker marker-20"></span><span class="progress-marker marker-30"></span><span class="progress-marker marker-40"></span><span class="progress-marker marker-50"></span><span class="progress-marker marker-60"></span><span class="progress-marker marker-70"></span><span class="progress-marker marker-80"></span><span class="progress-marker marker-90"></span></div><small class="phase-value">PREPARACIÓN</small><small class="next-boss">SIGUIENTE · MINIBOSS</small></div><div class="battle-resources"><span>❤️ <b class="base-value">${run.baseHp}%</b></span><span>🪙 <b class="coins-value">${run.coins}</b></span><span>🌊 <b class="wave-counter">0/${run.totalWaves}</b></span></div></header><section class="battle-layout"><div class="game-field"><canvas id="battle-canvas" width="540" height="640"></canvas><div class="boss-hud" id="boss-hud"><div><strong class="boss-name">THE TITAN</strong><span class="boss-health-label">100%</span></div><div class="boss-health-track"><i class="boss-progress"></i></div></div><div class="field-hint" id="field-hint">Mantén y arrastra hasta una zona verde</div><div class="boss-warning" id="boss-warning"><span>MINIBOSS</span><strong>THE TITAN</strong></div></div><aside class="battle-side"><div class="tower-shop"><div class="section-label"><span>DEFENSAS</span><small>ARRASTRA AL MAPA</small></div><div class="tower-cards">${Object.values(GAME_CONFIG.towers).map((tower) => `<button class="tower-card" data-tower="${tower.id}" title="Arrastra para colocar o fusionar" style="--rarity-color:${tower.rarityColor}"><span class="tower-art" style="--tower-color:${tower.color}">${this.towerArt(tower.id)}</span><span><strong>${tower.shortName}</strong><small>${tower.name} · NV.${this.game.towerLevel(tower.id)}</small></span><em>◆ ${tower.cost}</em></button>`).join('')}</div></div><div class="clicker-zone"><div class="clicker-currency">🪙 <b class="coins-value">${run.coins}</b></div><div class="clicker-card"><div><span class="eyebrow">GENERADOR MANUAL</span><p><span class="auto-value">+0</span> / s · combo <span class="combo-value">x0</span></p></div><button class="clicker-button" id="clicker-button"><strong>x<b class="click-value">1</b></strong><small>TOCAR</small></button></div><button class="upgrade-clicker" id="upgrade-clicker"><span>NIVEL <b class="clicker-level">1</b></span><strong>MEJORAR · ◆ <b class="clicker-cost">65</b></strong></button></div><div class="tower-panel" id="tower-panel"></div></aside></section><div class="shop-drag-preview" id="shop-drag-preview" aria-hidden="true"></div><div class="feedback" id="feedback"></div><div class="upgrade-overlay" id="upgrade-overlay"></div><div class="result-overlay" id="result-overlay"></div></main>`;
+    const clickerDescription = this.app.querySelector('.clicker-card p');
+    if (clickerDescription) clickerDescription.innerHTML = '<span class="click-value">1</span> monedas por toque';
+    const clickerLabel = this.app.querySelector('.clicker-button strong');
+    if (clickerLabel) clickerLabel.innerHTML = '+<b class="click-value">1</b>';
+    const clickerCost = this.app.querySelector('.clicker-cost');
+    if (clickerCost) clickerCost.textContent = this.game.economy.clickerCost() || 'MÁX';
+    this.app.querySelectorAll('.tower-card').forEach((card) => {
+      const tower = GAME_CONFIG.towers[card.dataset.tower];
+      const cost = towerCost(card.dataset.tower, this.game.towerLevel(card.dataset.tower));
+      const price = card.querySelector('em');
+      if (tower && price) price.textContent = `◆ ${cost}`;
+    });
     this.app.querySelector('.battle-title .eyebrow')?.remove();
     this.app.querySelector('.battle-title .live-badge')?.remove();
     this.app.querySelector('.battle-progress-top strong')?.remove();
@@ -387,8 +427,9 @@ export class UIManager {
     const run = this.game.run;
     const point = this.canvasPoint(event);
     if (run.placingType) {
-      run.drag = { mode: 'place', type: run.placingType, level: run.placingLevel || 1, pointerId: event.pointerId, moved: false, point, fromShop: false, inCanvas: true, pointerValid: false, pointerPoint: point, lastValidPoint: null };
-      run.placementPreview = null;
+      const valid = this.game.towers.getPlacementValidation(point, run.placingType).valid;
+      run.drag = { mode: 'place', type: run.placingType, level: run.placingLevel || 1, pointerId: event.pointerId, moved: false, point, fromShop: false, inCanvas: true, pointerValid: valid, pointerPoint: point, lastValidPoint: valid ? { ...point } : null };
+      run.placementPreview = valid ? { ...point } : null;
       return;
     }
     const tower = run.towers.find((item) => Math.hypot(item.x - point.x, item.y - point.y) < 30);
@@ -424,20 +465,26 @@ export class UIManager {
       run.mergeTargetId = directTarget?.id || null;
       if (directTarget) {
         run.placementPreview = { x: directTarget.x, y: directTarget.y };
-        drag.lastValidPoint = run.placementPreview;
         drag.pointerValid = true;
       } else {
         const validation = this.game.towers.getPlacementValidation(drag.point, run.placingType);
-        drag.pointerValid = validation.valid;
         if (validation.valid) {
+          drag.pointerValid = true;
           run.placementPreview = drag.point;
-          drag.lastValidPoint = drag.point;
-        } else if (!drag.lastValidPoint) {
-          const fallback = this.game.towers.findNearestValidPosition(drag.point, run.placingType);
-          if (fallback) {
-            run.placementPreview = fallback;
-            drag.lastValidPoint = fallback;
+          drag.lastValidPoint = { ...drag.point };
+        } else if (drag.lastValidPoint) {
+          const slid = this.game.towers.slidePlacement(drag.lastValidPoint, drag.point, run.placingType);
+          if (slid) {
+            run.placementPreview = slid;
+            drag.lastValidPoint = { ...slid };
           }
+          drag.pointerValid = Boolean(run.placementPreview && this.game.towers.getPlacementValidation(run.placementPreview, run.placingType).valid);
+        } else {
+          // Al entrar directamente sobre un obstáculo mostramos el punto rojo
+          // bajo el puntero; sólo creamos un ancla de deslizamiento después de
+          // haber alcanzado una posición válida, evitando saltos radiales.
+          run.placementPreview = { ...drag.point };
+          drag.pointerValid = false;
         }
       }
       this.updateShopDragPreview(event);
@@ -467,7 +514,8 @@ export class UIManager {
       const level = run.placingLevel || 1;
       const directTarget = candidate && candidate.type === run.placingType && candidate.level === level ? candidate : null;
       if (inside && drag.moved && directTarget && this.game.towers.mergePurchased(run.placingType, directTarget.id)) return;
-      if (inside && drag.moved && point && this.game.towers.getPlacementValidation(point, run.placingType).valid && this.game.towers.place(point)) return;
+      const finalPoint = run.placementPreview || point;
+      if (inside && drag.moved && finalPoint && this.game.towers.getPlacementValidation(finalPoint, run.placingType).valid && this.game.towers.place(finalPoint)) return;
       this.game.towers.cancelPlacement();
       this.game.feedback('Colocación cancelada · sin gasto', 'info');
       return;
@@ -500,18 +548,20 @@ export class UIManager {
     this.updateMergeIndicators();
     this.updateShopDragPreview();
     const set = (selector, value) => this.app.querySelectorAll(selector).forEach((node) => { node.textContent = value; });
-    set('.coins-value', Math.floor(run.coins)); set('.base-value', `${Math.ceil(run.baseHp)}%`); set('.kills-value', run.kills); set('.clicker-level', run.clickerLevel); set('.clicker-cost', this.game.economy.clickerCost()); set('.auto-value', `+${run.autoCoins + Math.floor(run.clickerLevel / 3)}`); set('.combo-value', `x${run.combo}`); set('.wave-counter', run.phase?.type === 'wave' ? `${run.waveNumber}/${run.totalWaves}` : run.phase?.type === 'boss' ? 'BOSS' : run.phase?.type === 'miniboss' ? 'MINI' : `${run.waveNumber}/${run.totalWaves}`); set('.phase-value', run.phase?.type === 'boss' ? 'BOSS FINAL' : run.phase?.type === 'miniboss' ? 'MINIBOSS' : run.phase?.type === 'wave' ? `OLEADA ${run.waveNumber}` : run.phaseLabel || 'PREPARACIÓN');
-    const clickValue = Math.max(1, Math.round(Math.pow(1.8, run.clickerLevel - 1) * (1 + (run.buffs.coins || 0)))); set('.click-value', clickValue);
+    set('.coins-value', Math.floor(run.coins)); set('.base-value', `${Math.ceil(run.baseHp)}%`); set('.kills-value', run.kills); set('.clicker-level', run.clickerLevel); set('.clicker-cost', this.game.economy.clickerCost() || 'MÁX'); set('.wave-counter', run.phase?.type === 'wave' ? `${run.waveNumber}/${run.totalWaves}` : run.phase?.type === 'boss' ? 'BOSS' : run.phase?.type === 'miniboss' ? 'MINI' : `${run.waveNumber}/${run.totalWaves}`); set('.phase-value', run.phase?.type === 'boss' ? 'BOSS FINAL' : run.phase?.type === 'miniboss' ? 'MINIBOSS' : run.phase?.type === 'wave' ? `OLEADA ${run.waveNumber}` : run.phaseLabel || 'PREPARACIÓN');
+    const clickValue = GAME_CONFIG.economy.clickValues[Math.min(GAME_CONFIG.economy.clickValues.length - 1, run.clickerLevel - 1)] || 1; set('.click-value', clickValue);
     this.app.querySelectorAll('.tower-card').forEach((card) => {
-      const affordable = run.coins >= towerCost(card.dataset.tower);
+      const affordable = run.coins >= towerCost(card.dataset.tower, this.game.towerLevel(card.dataset.tower));
       card.classList.toggle('insufficient', !affordable);
       card.setAttribute('aria-disabled', String(!affordable));
     });
     const upgradeButton = this.app.querySelector('#upgrade-clicker');
     if (upgradeButton) {
-      const canAfford = run.coins >= this.game.economy.clickerCost();
+      const clickerCost = this.game.economy.clickerCost();
+      const canAfford = Boolean(clickerCost && run.coins >= clickerCost);
       upgradeButton.classList.toggle('can-afford', canAfford);
       upgradeButton.setAttribute('aria-disabled', String(!canAfford));
+      upgradeButton.disabled = !clickerCost;
     }
     const progress = Math.min(100, Math.floor(run.kills / run.totalEnemies * 100)); const progressNode = this.app.querySelector('.wave-progress'); if (progressNode) progressNode.style.width = `${progress}%`; set('.progress-value', `${progress}%`);
     const next = run.wavePlan.slice(Math.max(0, run.phaseIndex + 1)).find((item) => item.type === 'miniboss' || item.type === 'boss'); set('.next-boss', run.phase?.type === 'boss' ? 'BOSS FINAL' : next?.type === 'boss' ? 'BOSS FINAL' : 'MINIBOSS');
@@ -618,7 +668,18 @@ export class UIManager {
     }
     if (run.mergeFx && run.mergeFx.until > performance.now()) this.drawMergeEffect(ctx, run);
     for (const tower of run.towers) { const stats = getTowerStats(tower.type, tower.level, run.buffs); const isTarget = tower.id === run.mergeTargetId; const fx = run.mergeFx && tower.id === run.mergeFx.resultId ? this.mergeProgress(run.mergeFx) : null; const animation = fx ? { scale: .72 + fx * .28, alpha: .45 + fx * .55, lift: (1 - fx) * 6 } : {}; animation.mergeable = run.mergeableTowerIds?.has(tower.id); this.drawTower(ctx, tower, stats, tower.id === run.selectedTowerId, isTarget, animation); }
-    for (const enemy of run.enemies) { if (!enemy.alive) continue; const p = enemyPosition(enemy); ctx.fillStyle = enemy.color; ctx.beginPath(); ctx.arc(p.x, p.y, enemy.radius, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#332e25'; ctx.beginPath(); ctx.arc(p.x - 4, p.y - 2, 2.2, 0, Math.PI * 2); ctx.arc(p.x + 4, p.y - 2, 2.2, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = 'rgba(31, 48, 26, .7)'; ctx.fillRect(p.x - enemy.radius, p.y - enemy.radius - 8, enemy.radius * 2, 3); ctx.fillStyle = enemy.kind === 'boss' ? '#b9342c' : '#d8e78d'; ctx.fillRect(p.x - enemy.radius, p.y - enemy.radius - 8, enemy.radius * 2 * Math.max(0, enemy.hp / enemy.maxHp), 3); if (enemy.kind === 'mini' || enemy.kind === 'boss') { ctx.strokeStyle = enemy.kind === 'boss' ? '#b9342c' : '#8b5da5'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, enemy.radius + 5 + Math.sin(enemy.pulse * 4) * 2, 0, Math.PI * 2); ctx.stroke(); } }
+    for (const enemy of run.enemies) {
+      if (!enemy.alive) continue;
+      const p = enemyPosition(enemy);
+      if (enemy.slowTimer > 0) {
+        ctx.strokeStyle = '#8fe7ff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, enemy.radius + 5 + Math.sin(enemy.pulse * 7) * 1.5, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.fillStyle = enemy.color; ctx.beginPath(); ctx.arc(p.x, p.y, enemy.radius, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#332e25'; ctx.beginPath(); ctx.arc(p.x - 4, p.y - 2, 2.2, 0, Math.PI * 2); ctx.arc(p.x + 4, p.y - 2, 2.2, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = 'rgba(31, 48, 26, .7)'; ctx.fillRect(p.x - enemy.radius, p.y - enemy.radius - 8, enemy.radius * 2, 3); ctx.fillStyle = enemy.kind === 'boss' ? '#b9342c' : '#d8e78d'; ctx.fillRect(p.x - enemy.radius, p.y - enemy.radius - 8, enemy.radius * 2 * Math.max(0, enemy.hp / enemy.maxHp), 3); if (enemy.kind === 'mini' || enemy.kind === 'boss') { ctx.strokeStyle = enemy.kind === 'boss' ? '#b9342c' : '#8b5da5'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, enemy.radius + 5 + Math.sin(enemy.pulse * 4) * 2, 0, Math.PI * 2); ctx.stroke(); }
+    }
     for (const projectile of run.projectiles) { const t = 1 - projectile.life / projectile.maxLife; const x = projectile.from.x + (projectile.to.x - projectile.from.x) * t; const y = projectile.from.y + (projectile.to.y - projectile.from.y) * t; ctx.fillStyle = projectile.towerType === 'flame' ? '#ec7a35' : '#f3d27c'; ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill(); }
   }
 
