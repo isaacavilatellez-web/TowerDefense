@@ -9,6 +9,7 @@ import { WaveManager } from './waveManager.js';
 import { RoguelikeManager } from './roguelikeManager.js';
 import { LevelManager } from './levelManager.js';
 import { AudioManager } from './audioManager.js';
+import { getWavePlan } from './levelData.js';
 
 export class GameManager {
   constructor(ui) {
@@ -34,20 +35,24 @@ export class GameManager {
     this.stopLoop();
     try {
       const meta = this.levels.getLevel(level);
-      const map = MapGenerator.generate(level, Date.now() % 100000);
+      const map = MapGenerator.generate(level);
       const difficulty = getLevelDifficulty(level);
+      const wavePlan = getWavePlan(level);
+      const developerRun = Boolean(this.save.settings?.developer && !this.levels.isNormallyUnlocked(level));
       console.log('map generated', { points: map.points.length, buildSpots: map.buildSpots.length, obstacles: map.obstacles.length });
       this.run = {
-        level, meta, map,
+        level, meta, map, developerRun,
         baseHp: GAME_CONFIG.levels.startingBaseHp, baseMaxHp: GAME_CONFIG.levels.startingBaseHp,
         coins: GAME_CONFIG.economy.startingCoins, clickerLevel: 1, autoCoins: 0, autoCoinTimer: 0,
         clicks: 0, combo: 0, comboTimer: 0,
         towers: [], enemies: [], projectiles: [], nextEnemyId: 1,
         difficulty,
-        totalEnemies: difficulty.totalEnemies,
-        spawned: 0, kills: 0, leaks: 0, spawnTimer: difficulty.initialDelay, bossReadyTimer: 0, bossActive: false,
+        wavePlan, phaseIndex: -1, phase: null, phaseSpawned: 0, phaseKills: 0, phaseLeaks: 0, phaseLabel: 'PREPARACIÓN', phaseTimer: 0, phaseCountdown: 0, waveNumber: 0,
+        totalEnemies: wavePlan.filter((phase) => phase.type === 'wave').reduce((sum, phase) => sum + phase.enemies, 0), totalWaves: wavePlan.filter((phase) => phase.type === 'wave').length,
+        spawned: 0, ambientSpawned: 0, ambientSpawnedThisPhase: 0, ambientTimer: difficulty.initialDelay, kills: 0, leaks: 0, spawnTimer: difficulty.initialDelay, bossReadyTimer: 0, bossActive: false, miniBossActive: false,
+        bossCurrencyEarned: 0,
         miniBosses: [], upgradeOptions: [], pausedForUpgrade: false, buffs: {},
-        placingType: null, selectedTowerId: null, mergeTargetId: null, drag: null, placementPreview: null, ended: false, result: null,
+        placingType: null, placingLevel: 1, selectedTowerId: null, mergeTargetId: null, drag: null, mergeFx: null, placementPreview: null, ended: false, result: null,
       };
       if (!this.ui.showBattle()) {
         this.run = null;
@@ -113,17 +118,54 @@ export class GameManager {
     if (!this.run || this.run.ended) return;
     this.run.ended = true;
     this.run.result = victory ? 'victory' : 'defeat';
-    if (victory) {
+    if (victory && !this.run.developerRun) {
       const stars = this.run.baseHp > 50 ? 3 : this.run.baseHp > 20 ? 2 : 1;
       this.levels.complete(this.run.level, stars);
       this.save.scrap += GAME_CONFIG.economy.bossReward;
       this.audio.ping(720, 0.24);
-    } else {
+    } else if (!this.run.developerRun) {
       this.save.scrap += Math.max(5, Math.floor(this.run.kills * 0.7));
       this.audio.ping(150, 0.18);
+    } else {
+      this.feedback('MODO DEV · progreso no guardado', 'info');
     }
     SaveSystem.save(this.save);
     this.ui.render();
+  }
+
+  towerLevel(type) { return Math.max(1, Number(this.save.towerLevels?.[type]) || 1); }
+
+  towerUpgradeCost(type) {
+    return 2 + this.towerLevel(type) * 3;
+  }
+
+  upgradePermanentTower(type) {
+    if (!GAME_CONFIG.towers[type]) return false;
+    const cost = this.towerUpgradeCost(type);
+    if (this.save.crystals < cost) return false;
+    this.save.crystals -= cost;
+    this.save.towerLevels[type] = this.towerLevel(type) + 1;
+    SaveSystem.save(this.save);
+    return true;
+  }
+
+  spendCrystals(amount) {
+    const cost = Math.max(0, Math.floor(amount));
+    if (this.save.crystals < cost) return false;
+    this.save.crystals -= cost;
+    SaveSystem.save(this.save);
+    return true;
+  }
+
+  grantBossCurrency(kind) {
+    const amount = GAME_CONFIG.economy.bossCurrency[kind] || 0;
+    if (!amount || !this.run) return;
+    this.run.bossCurrencyEarned += amount;
+    if (!this.run.developerRun) {
+      this.save.crystals += amount;
+      SaveSystem.save(this.save);
+    }
+    this.feedback(`+${amount} NÚCLEO${amount === 1 ? '' : 'S'} DE JEFE`, 'special');
   }
 
   feedback(message, kind = 'info') {

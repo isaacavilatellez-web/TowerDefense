@@ -7,9 +7,10 @@ const DEFAULT_SAVE = {
   scrap: 0,
   technology: 0,
   crystals: 0,
+  towerLevels: {},
   selectedCommander: 'engineer',
-  unlockedTowers: ['gunner', 'cannon', 'flame'],
-  settings: { sound: true, haptics: true },
+  unlockedTowers: ['gunner', 'cannon', 'flame', 'sniper', 'tesla', 'mortar'],
+  settings: { sound: true, haptics: true, developer: false },
 };
 
 function freshSave() {
@@ -25,7 +26,11 @@ function normalizeSave(value) {
     ...data,
     completedLevels: Array.isArray(data.completedLevels) ? data.completedLevels : [],
     stars: data.stars && typeof data.stars === 'object' ? data.stars : {},
-    unlockedTowers: Array.isArray(data.unlockedTowers) ? data.unlockedTowers : [...DEFAULT_SAVE.unlockedTowers],
+    crystals: Number.isFinite(data.crystals) ? Math.max(0, Math.floor(data.crystals)) : 0,
+    towerLevels: data.towerLevels && typeof data.towerLevels === 'object' ? data.towerLevels : {},
+    unlockedTowers: Array.isArray(data.unlockedTowers)
+      ? [...new Set([...data.unlockedTowers, ...DEFAULT_SAVE.unlockedTowers])]
+      : [...DEFAULT_SAVE.unlockedTowers],
     settings: { ...DEFAULT_SAVE.settings, ...(data.settings && typeof data.settings === 'object' ? data.settings : {}) },
   };
 }

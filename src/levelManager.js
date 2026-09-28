@@ -2,7 +2,8 @@ import { WORLDS, getLevelDifficulty } from './config.js';
 
 export class LevelManager {
   constructor(game) { this.game = game; }
-  isUnlocked(level) { return level === 1 || this.game.save.completedLevels.includes(level - 1); }
+  isNormallyUnlocked(level) { return level === 1 || this.game.save.completedLevels.includes(level - 1); }
+  isUnlocked(level) { return this.isNormallyUnlocked(level) || Boolean(this.game.save.settings?.developer); }
   getLevel(level) {
     const world = WORLDS[Math.floor((level - 1) / 10)] || WORLDS[WORLDS.length - 1];
     const tuning = getLevelDifficulty(level);

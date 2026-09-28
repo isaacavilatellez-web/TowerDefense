@@ -1,3 +1,4 @@
+import { GAME_CONFIG } from './config.js';
 import { getTowerStats, towerCost } from './towerData.js';
 import { enemyPosition } from './enemyData.js';
 
@@ -5,25 +6,44 @@ export class TowerManager {
   constructor(game) { this.game = game; }
 
   buy(type) {
+    if (this.game.run?.placingType) return false;
     const cost = towerCost(type);
     if (this.game.run.coins < cost) return false;
-    this.game.run.coins -= cost;
+    const level = this.game.towerLevel(type);
     this.game.run.placingType = type;
+    this.game.run.placingLevel = level;
     this.game.run.placementPreview = null;
-    this.game.run.drag = { mode: 'place', type, moved: false };
+    this.game.run.mergeTargetId = null;
+    this.game.run.drag = { mode: 'place', type, level, pointerId: null, moved: false, fromShop: true };
     this.game.feedback('Arrastra la defensa hasta una zona verde', 'info');
     return true;
   }
 
-  place(spot) {
-    if (!spot || spot.occupied || !this.game.run.placingType) return false;
-    const tower = { id: `tower-${Date.now()}-${Math.random()}`, type: this.game.run.placingType, level: 1, x: spot.x, y: spot.y, cooldown: 0, priority: 'first' };
-    spot.occupied = true;
-    this.game.run.towers.push(tower);
-    this.game.run.placingType = null;
-    this.game.run.placementPreview = null;
-    this.game.run.drag = null;
-    this.game.run.selectedTowerId = tower.id;
+  cancelPlacement() {
+    const run = this.game.run;
+    if (!run?.placingType) return false;
+    run.placingType = null;
+    run.placingLevel = 1;
+    run.placementPreview = null;
+    run.drag = null;
+    run.mergeTargetId = null;
+    return true;
+  }
+
+  place(point) {
+    const run = this.game.run;
+    if (!point || !run.placingType || !this.canPlaceAt(point)) return false;
+    const cost = towerCost(run.placingType);
+    if (run.coins < cost) return false;
+    run.coins -= cost;
+    const tower = { id: `tower-${Date.now()}-${Math.random()}`, type: run.placingType, level: run.placingLevel || 1, x: point.x, y: point.y, cooldown: 0, priority: 'first' };
+    run.towers.push(tower);
+    run.placingType = null;
+    run.placingLevel = 1;
+    run.placementPreview = null;
+    run.drag = null;
+    run.mergeTargetId = null;
+    run.selectedTowerId = tower.id;
     this.game.feedback('Defensa colocada', 'success');
     return true;
   }
@@ -31,8 +51,41 @@ export class TowerManager {
   canPlaceAt(point) {
     const run = this.game.run;
     if (!point || !run.placingType) return false;
-    const spot = run.map.buildSpots.find((item) => !item.occupied && Math.hypot(item.x - point.x, item.y - point.y) < 36);
-    return Boolean(spot);
+    return this.getPlacementValidation(point, run.placingType).valid;
+  }
+
+  distanceToPath(point) {
+    const paths = this.game.run?.map?.paths || [this.game.run?.map?.points || []];
+    return paths.reduce((closestPath, path) => Math.min(closestPath, path.slice(0, -1).reduce((closest, start, index) => {
+      const end = path[index + 1];
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const length = dx * dx + dy * dy || 1;
+      const t = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / length));
+      return Math.min(closest, Math.hypot(point.x - (start.x + dx * t), point.y - (start.y + dy * t)));
+    }, Infinity)), Infinity);
+  }
+
+  getPlacementValidation(point, type = this.game.run?.placingType) {
+    const run = this.game.run;
+    if (!run || !point || !type) return { valid: false, reason: 'missing' };
+    const { width, height } = GAME_CONFIG.map;
+    const { pathClearance, towerSeparation, edgeMargin } = GAME_CONFIG.placement;
+    if (point.x < edgeMargin || point.x > width - edgeMargin || point.y < edgeMargin || point.y > height - edgeMargin) return { valid: false, reason: 'edge' };
+    if (this.distanceToPath(point) < pathClearance) return { valid: false, reason: 'path' };
+    if (run.towers.some((tower) => Math.hypot(tower.x - point.x, tower.y - point.y) < towerSeparation)) return { valid: false, reason: 'tower' };
+    return { valid: true, reason: 'terrain' };
+  }
+
+  findNearestValidPosition(point, type = this.game.run?.placingType) {
+    if (this.getPlacementValidation(point, type).valid) return point;
+    for (let radius = 14; radius <= 96; radius += 10) {
+      for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
+        const candidate = { x: point.x + Math.cos(angle) * radius, y: point.y + Math.sin(angle) * radius };
+        if (this.getPlacementValidation(candidate, type).valid) return candidate;
+      }
+    }
+    return null;
   }
 
   select(tower) { this.game.run.selectedTowerId = tower?.id || null; }
@@ -42,13 +95,37 @@ export class TowerManager {
     const a = towers.find((item) => item.id === aId);
     const b = towers.find((item) => item.id === bId);
     if (!a || !b || a.id === b.id || a.type !== b.type || a.level !== b.level) return false;
-    a.level += 1;
-    const spot = this.game.run.map.buildSpots.find((item) => Math.abs(item.x - b.x) < 2 && Math.abs(item.y - b.y) < 2);
-    if (spot) spot.occupied = false;
-    this.game.run.towers = towers.filter((item) => item.id !== b.id);
-    this.game.run.selectedTowerId = a.id;
-    this.game.run.mergeFx = { x: a.x, y: a.y, until: performance.now() + 520 };
-    this.game.feedback(`FUSIÓN · NIVEL ${a.level}`, 'merge');
+    const sourcePosition = { x: a.x, y: a.y };
+    const destinationPosition = { x: b.x, y: b.y };
+    const sourceLevel = a.level;
+    b.level += 1;
+    b.cooldown = 0;
+    this.game.run.towers = towers.filter((item) => item.id !== a.id);
+    this.game.run.selectedTowerId = b.id;
+    this.game.run.mergeFx = { x: destinationPosition.x, y: destinationPosition.y, from: sourcePosition, type: b.type, level: sourceLevel, resultId: b.id, until: performance.now() + 620, started: performance.now() };
+    this.game.feedback(`FUSIÓN · NIVEL ${b.level}`, 'merge');
+    return true;
+  }
+
+  mergePurchased(type, targetId) {
+    const run = this.game.run;
+    const target = run.towers.find((item) => item.id === targetId);
+    const level = run.placingLevel || 1;
+    if (!run.placingType || run.placingType !== type || !target || target.type !== type || target.level !== level) return false;
+    const cost = towerCost(type);
+    if (run.coins < cost) return false;
+    run.coins -= cost;
+    const sourceLevel = target.level;
+    target.level += 1;
+    target.cooldown = 0;
+    run.placingType = null;
+    run.placingLevel = 1;
+    run.placementPreview = null;
+    run.drag = null;
+    run.mergeTargetId = null;
+    run.selectedTowerId = target.id;
+    run.mergeFx = { x: target.x, y: target.y, from: { x: target.x, y: target.y }, type: target.type, level: sourceLevel, resultId: target.id, until: performance.now() + 620, started: performance.now() };
+    this.game.feedback(`FUSIÓN DIRECTA · NIVEL ${target.level}`, 'merge');
     return true;
   }
 
