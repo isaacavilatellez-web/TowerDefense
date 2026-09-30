@@ -7,8 +7,8 @@ export class TowerManager {
 
   buy(type) {
     if (this.game.run?.placingType) return false;
-    const level = this.game.towerLevel(type);
-    const cost = towerCost(type, level);
+    const level = 1;
+    const cost = towerCost(type, this.game.towerLevel(type));
     if (this.game.run.coins < cost) return false;
     this.game.run.placingType = type;
     this.game.run.placingLevel = level;
@@ -196,7 +196,7 @@ export class TowerManager {
     const towers = this.game.run.towers;
     const a = towers.find((item) => item.id === aId);
     const b = towers.find((item) => item.id === bId);
-    if (!a || !b || a.id === b.id || a.type !== b.type || a.level !== b.level) return false;
+    if (!a || !b || a.id === b.id || a.type !== b.type || a.level !== b.level || a.level >= 5) return false;
     const sourcePosition = { x: a.x, y: a.y };
     const destinationPosition = { x: b.x, y: b.y };
     const sourceLevel = a.level;
@@ -214,8 +214,8 @@ export class TowerManager {
     const run = this.game.run;
     const target = run.towers.find((item) => item.id === targetId);
     const level = run.placingLevel || 1;
-    if (!run.placingType || run.placingType !== type || !target || target.type !== type || target.level !== level) return false;
-    const cost = towerCost(type, level);
+    if (!run.placingType || run.placingType !== type || !target || target.type !== type || target.level !== level || target.level >= 5) return false;
+    const cost = towerCost(type, this.game.towerLevel(type));
     if (run.coins < cost) return false;
     run.coins -= cost;
     const sourceLevel = target.level;
@@ -237,7 +237,7 @@ export class TowerManager {
     for (const tower of this.game.run.towers) {
       tower.cooldown -= seconds;
       if (tower.cooldown > 0) continue;
-      const stats = getTowerStats(tower.type, tower.level, this.game.run.buffs);
+      const stats = getTowerStats(tower.type, tower.level, this.game.run.buffs, this.game.towerLevel(tower.type));
       const targets = this.game.run.enemies.filter((enemy) => enemy.alive && this.inRange(tower, enemy, stats.range));
       if (!targets.length) continue;
       const target = this.pickTarget(targets, tower.priority);

@@ -1,16 +1,21 @@
 import { GAME_CONFIG } from './config.js';
 
-export function getTowerStats(type, level, buffs = {}) {
+export function getTowerStats(type, level = 1, buffs = {}, permanentLevel = 1) {
   const base = GAME_CONFIG.towers[type];
-  const levelMultiplier = 1 + (level - 1) * 0.55;
+  const evolution = Math.max(1, Math.min(5, Number(level) || 1));
+  const permanent = Math.max(1, Number(permanentLevel) || 1);
+  const evolutionMultiplier = 1 + (evolution - 1) * 0.55;
+  const permanentMultiplier = 1 + Math.min(2.5, (permanent - 1) * 0.18);
   const damageBuff = type === 'gunner' ? (1 + (buffs.gunner_damage || 0)) : 1;
   const flameBuff = type === 'flame' ? (1 + (buffs.flame_damage || 0)) : 1;
   return {
     ...base,
-    level,
-    damage: Math.round(base.damage * levelMultiplier * damageBuff * flameBuff),
+    level: evolution,
+    evolution,
+    permanentLevel: permanent,
+    damage: Math.round(base.damage * evolutionMultiplier * permanentMultiplier * damageBuff * flameBuff),
     cooldown: base.cooldown / (1 + (buffs.attack_speed || 0)),
-    range: base.range * (1 + (buffs.range || 0)) * (1 + (level - 1) * 0.04),
+    range: base.range * (1 + (buffs.range || 0)) * (1 + (permanent - 1) * 0.012),
     splash: base.splash * (1 + (buffs.cannon_splash || 0)),
     chain: base.chain || 0,
     chainRange: base.chainRange || 0,

@@ -7,7 +7,11 @@ export class EnemyManager {
     const run = this.game.run;
     const paths = run.map.paths || [run.map.points];
     const pathIndex = kind === 'boss' ? 0 : kind === 'mini' ? Math.max(0, run.phaseIndex % paths.length) : (options.pathIndex ?? (run.spawned + run.ambientSpawned) % paths.length);
-    const enemy = createEnemy(kind, run.level, paths[pathIndex], `enemy-${run.nextEnemyId++}`);
+    const infiniteConfig = run.mode === 'infinite' ? run.infiniteDirector?.config : null;
+    const enemy = createEnemy(kind, run.level, paths[pathIndex], `enemy-${run.nextEnemyId++}`, infiniteConfig ? {
+      hpMultiplier: infiniteConfig.enemyHpMultiplier,
+      speedMultiplier: infiniteConfig.enemySpeedMultiplier,
+    } : {});
     run.enemies.push(enemy);
     if (kind === 'mini') this.game.feedback('MINI JEFE ENTRANTE', 'boss');
     if (kind === 'boss') { run.bossActive = true; this.game.feedback('BOSS INCOMING · THE TITAN', 'boss'); }
@@ -38,7 +42,9 @@ export class EnemyManager {
         if (run.baseHp <= 0) this.game.endRun(false);
       }
     }
-    run.enemies = run.enemies.filter((enemy) => enemy.alive || enemy.hp <= 0);
+    run.enemies = run.mode === 'infinite'
+      ? run.enemies.filter((enemy) => enemy.alive)
+      : run.enemies.filter((enemy) => enemy.alive || enemy.hp <= 0);
   }
 
   hit(enemyId, damage, splash, origin, effect = {}) {
@@ -46,20 +52,14 @@ export class EnemyManager {
     const target = run.enemies.find((enemy) => enemy.id === enemyId && enemy.alive);
     if (!target) return;
     const incoming = Math.max(0, Number(damage) || 0);
-    const shield = Math.max(0, Number(target.shield) || 0);
-    const absorbed = Math.min(shield, incoming * 0.7);
-    target.shield = Math.max(0, shield - absorbed);
-    const actual = Math.max(0, incoming - absorbed);
-    // La vida del enemigo rosa debe disminuir de forma monotónica: el escudo
-    // absorbe daño, pero nunca restaura ni puede llevar la vida por debajo de 0.
-    target.hp = Math.max(0, target.hp - actual);
+    const actual = this.damageEnemy(target, incoming);
     this.applySlow(target, effect.slowFactor, effect.slowDuration);
     if (splash > 0) {
       for (const enemy of run.enemies) {
         if (!enemy.alive || enemy.id === target.id) continue;
         const position = enemyPosition(enemy);
         if (Math.hypot(position.x - origin.x, position.y - origin.y) <= splash) {
-          enemy.hp = Math.max(0, enemy.hp - actual * 0.45);
+          this.damageEnemy(enemy, actual * 0.45);
           if (enemy.hp <= 0) this.kill(enemy);
         }
       }
@@ -86,11 +86,25 @@ export class EnemyManager {
         .sort((a, b) => a.distance - b.distance)[0]?.enemy;
       if (!next) break;
       hitIds.add(next.id);
-      next.hp = Math.max(0, next.hp - damage);
+      this.damageEnemy(next, damage);
       this.applySlow(next, effect.slowFactor, effect.slowDuration);
       if (next.hp <= 0) this.kill(next);
       current = next;
     }
+  }
+
+  damageEnemy(enemy, damage) {
+    if (!enemy?.alive) return 0;
+    const incoming = Math.max(0, Number(damage) || 0);
+    const shield = Math.max(0, Number(enemy.shield) || 0);
+    const absorbed = Math.min(shield, incoming * 0.7);
+    enemy.shield = Math.max(0, shield - absorbed);
+    const healthDamage = Math.min(Math.max(0, enemy.hp), Math.max(0, incoming - absorbed));
+    enemy.hp = Math.max(0, enemy.hp - healthDamage);
+    if (healthDamage > 0 && this.game.run.mode === 'infinite') {
+      this.game.run.damageDone = Math.min(this.game.run.damageTarget, this.game.run.damageDone + healthDamage);
+    }
+    return healthDamage;
   }
 
   kill(enemy) {
@@ -102,10 +116,10 @@ export class EnemyManager {
     if (enemy.kind === 'mini') {
       this.game.run.miniBossActive = false;
       if (!this.game.run.miniBosses.includes(this.game.run.phaseIndex)) this.game.run.miniBosses.push(this.game.run.phaseIndex);
-      this.game.grantBossCurrency('mini');
+      if (this.game.run.mode !== 'infinite') this.game.grantBossCurrency('mini');
     }
     if (enemy.kind === 'boss') {
-      this.game.grantBossCurrency('boss');
+      if (this.game.run.mode !== 'infinite') this.game.grantBossCurrency('boss');
       this.game.endRun(true);
     }
   }

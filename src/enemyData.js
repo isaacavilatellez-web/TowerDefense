@@ -1,9 +1,11 @@
 import { GAME_CONFIG, getLevelDifficulty } from './config.js';
 
-export function createEnemy(kind, level, path, id) {
+export function createEnemy(kind, level, path, id, overrides = {}) {
   const base = GAME_CONFIG.enemies[kind];
   const difficulty = getLevelDifficulty(level);
-  const hp = kind === 'boss' ? difficulty.bossHp : base.hp * difficulty.enemyHpMultiplier;
+  const hpMultiplier = Number.isFinite(overrides.hpMultiplier) ? overrides.hpMultiplier : difficulty.enemyHpMultiplier;
+  const speedMultiplier = Number.isFinite(overrides.speedMultiplier) ? overrides.speedMultiplier : difficulty.enemySpeedMultiplier;
+  const hp = kind === 'boss' ? difficulty.bossHp : base.hp * hpMultiplier;
   const segmentLengths = path.slice(0, -1).map((point, index) => Math.hypot(path[index + 1].x - point.x, path[index + 1].y - point.y));
   return {
     id,
@@ -11,7 +13,7 @@ export function createEnemy(kind, level, path, id) {
     name: base.name,
     hp,
     maxHp: hp,
-    speed: base.speed * difficulty.enemySpeedMultiplier,
+    speed: base.speed * speedMultiplier,
     reward: Math.round(base.reward * (1 + Math.min(
       GAME_CONFIG.economy.rewardLevelBonusCap,
       Math.max(0, level - 1) * GAME_CONFIG.economy.rewardLevelStep,
@@ -31,6 +33,7 @@ export function createEnemy(kind, level, path, id) {
     slowFactor: 1,
     slowTimer: 0,
     pulse: 0,
+    damageCounted: 0,
   };
 }
 

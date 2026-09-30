@@ -74,13 +74,32 @@ export class UIManager {
           <section class="map-heading"><div><span class="eyebrow">RUTA DE SUPERVIVENCIA</span><h2>Conquista el mundo</h2><p>Avanza por el camino, supera cada defensa y desbloquea el siguiente sector.</p></div><div class="map-stat"><span class="pulse-dot"></span><span>SEÑAL ACTIVA</span></div></section>
           <section class="world-track" id="world-track"></section>
         </section>
+        <button class="infinite-entry" id="infinite-entry" aria-label="Abrir modo infinito"><span>∞</span><small>INFINITO</small></button>
         ${this.bottomNav('map')}
       </main>`;
     this.renderMapNodes();
     this.app.querySelector('.map-screen').addEventListener('pointerdown', (event) => {
       if (!event.target.closest('.level-node, .level-selection-card')) this.closeLevelCard();
     });
+    this.app.querySelector('#infinite-entry')?.addEventListener('click', () => this.openInfinitePreparation());
     this.bindNav();
+  }
+
+  openInfinitePreparation() {
+    const status = this.game.getInfiniteStatus();
+    const reward = status.rewardPending ? this.game.infiniteRewardFor(status.phase) : null;
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-backdrop infinite-preparation-backdrop';
+    overlay.innerHTML = `<div class="level-modal infinite-preparation"><button class="modal-close" aria-label="Cerrar">×</button><span class="eyebrow">SUPERVIVENCIA CONTINUA</span><h2>INFINITO · FASE ${status.phase}</h2><p class="modal-title">Las fases son consecutivas. Mantén tu equipo entre fases y decide cuándo salir.</p><div class="mission-grid"><div><span>FASE ACTUAL</span><strong>${status.phase}</strong></div><div><span>RÉCORD</span><strong>${status.record}</strong></div><div><span>OBJETIVO DE DAÑO</span><strong>${this.game.createInfiniteRun(status.phase).damageTarget}</strong></div><div><span>RECOMPENSA</span><strong>${reward ? this.rewardLabel(reward) : 'YA COBRADA / SIN BONO'}</strong></div></div><div class="infinite-preparation-actions"><button class="primary-button infinite-enter">${status.activeRun ? 'CONTINUAR' : 'ENTRAR'} <span>→</span></button><button class="soft-button infinite-upgrades">MEJORAR CARTAS</button></div></div>`;
+    document.body.append(overlay);
+    overlay.querySelector('.modal-close').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (event) => { if (event.target === overlay) overlay.remove(); });
+    overlay.querySelector('.infinite-enter').addEventListener('click', () => { overlay.remove(); this.game.startInfinite({ continueSaved: true }); });
+    overlay.querySelector('.infinite-upgrades').addEventListener('click', () => { overlay.remove(); this.game.openInfiniteUpgrades(); });
+  }
+
+  rewardLabel(reward) {
+    return Object.entries({ scrap: 'CHAPA', crystals: 'NÚCLEOS', technology: 'TECNO' }).filter(([key]) => reward[key]).map(([key, label]) => `+${reward[key]} ${label}`).join(' · ');
   }
 
   renderMapNodes() {
@@ -205,7 +224,7 @@ export class UIManager {
     this.screen = 'defenses';
     const cards = Object.values(GAME_CONFIG.towers).map((tower) => {
       const level = this.game.towerLevel(tower.id);
-      const stats = getTowerStats(tower.id, level);
+      const stats = getTowerStats(tower.id, 1, {}, level);
       const damage = Math.min(100, Math.round(stats.damage / 70 * 100));
       const speed = Math.min(100, Math.round(1 / stats.cooldown * 24));
       const range = Math.min(100, Math.round(stats.range / 2));
@@ -221,7 +240,7 @@ export class UIManager {
     const tower = GAME_CONFIG.towers[type];
     if (!tower) return;
     const level = this.game.towerLevel(type);
-    const stats = getTowerStats(type, level);
+    const stats = getTowerStats(type, 1, {}, level);
     const cost = this.game.towerUpgradeCost(type);
     const detail = this.app.querySelector('#defense-detail');
     if (!detail) return;
@@ -269,11 +288,14 @@ export class UIManager {
     this.upgradeSelectionLocked = false;
     this.selectedPanelKey = '';
     const run = this.game.run;
+    this.resultRenderKey = '';
+    const infinite = run.mode === 'infinite';
+    const battleLabel = infinite ? `FASE ${run.infinitePhase}` : `NIVEL ${String(run.level).padStart(2, '0')}`;
     const currentClickValue = GAME_CONFIG.economy.clickValues[Math.min(GAME_CONFIG.economy.clickValues.length - 1, run.clickerLevel - 1)] || 1;
     const nextClickValue = GAME_CONFIG.economy.clickValues[run.clickerLevel] || 'MÁX';
     const clickerCost = this.game.economy.clickerCost() || 'MÁX';
     console.log('showBattle', { level: run?.level, mapReady: Boolean(run?.map) });
-    this.app.innerHTML = `<main class="app-shell battle-screen"><header class="battle-header"><button class="icon-button back-map" aria-label="Volver al mapa">‹</button><div class="battle-title"><h1>NIVEL ${String(run.level).padStart(2, '0')}</h1></div><div class="battle-progress"><div class="battle-progress-top"><span class="phase-label">OLEADA</span><b class="progress-value">0%</b></div><div class="progress-track"><i class="wave-progress"></i><span class="progress-marker marker-10"></span><span class="progress-marker marker-20"></span><span class="progress-marker marker-30"></span><span class="progress-marker marker-40"></span><span class="progress-marker marker-50"></span><span class="progress-marker marker-60"></span><span class="progress-marker marker-70"></span><span class="progress-marker marker-80"></span><span class="progress-marker marker-90"></span></div><small class="phase-value">PREPARACIÓN</small><small class="next-boss">SIGUIENTE · MINIBOSS</small></div><div class="battle-resources"><span class="hud-resource coins-resource"><i class="hud-icon coin-icon" aria-hidden="true">◆</i><b class="coins-value">${run.coins}</b></span><span class="hud-resource enemies-resource"><i class="hud-icon enemy-icon" aria-hidden="true">●</i><b class="enemy-count">0/${run.totalEnemies}</b></span></div></header><section class="battle-layout"><div class="game-field"><canvas id="battle-canvas" width="540" height="640"></canvas><div class="boss-hud" id="boss-hud"><div><strong class="boss-name">THE TITAN</strong><span class="boss-health-label">100%</span></div><div class="boss-health-track"><i class="boss-progress"></i></div></div><div class="field-hint" id="field-hint">Mantén y arrastra hasta una zona verde</div><div class="boss-warning" id="boss-warning"><span>MINIBOSS</span><strong>THE TITAN</strong></div></div><aside class="battle-side"><div class="tower-shop"><div class="section-label"><span>DEFENSAS</span><small>ARRASTRA AL MAPA</small></div><div class="tower-cards">${Object.values(GAME_CONFIG.towers).map((tower) => `<button class="tower-card" data-tower="${tower.id}" title="Arrastra para colocar o fusionar" style="--rarity-color:${tower.rarityColor}"><span class="tower-art" style="--tower-color:${tower.color}">${this.towerArt(tower.id)}</span><span><strong>${tower.shortName}</strong><small>${tower.name} · NV.${this.game.towerLevel(tower.id)}</small></span><em>◆ ${tower.cost}</em></button>`).join('')}</div></div><div class="clicker-zone"><div class="clicker-currency"><i class="hud-icon coin-icon" aria-hidden="true">◆</i><b class="coins-value">${run.coins}</b></div><div class="clicker-card"><button class="clicker-button" id="clicker-button" aria-label="CLICKER ×${currentClickValue}"><span class="clicker-title">CLICKER</span><strong>×<b class="click-value">${currentClickValue}</b></strong></button></div><button class="upgrade-clicker" id="upgrade-clicker" aria-label="MEJORAR a ×${nextClickValue} por ◆ ${clickerCost}"><strong>MEJORAR <span aria-hidden="true">→</span> ×<b class="clicker-next-level">${nextClickValue}</b></strong><span class="clicker-price">◆ <b class="clicker-cost">${clickerCost}</b></span></button></div><div class="tower-panel" id="tower-panel"></div></aside></section><div class="shop-drag-preview" id="shop-drag-preview" aria-hidden="true"></div><div class="feedback" id="feedback"></div><div class="upgrade-overlay" id="upgrade-overlay"></div><div class="result-overlay" id="result-overlay"></div></main>`;
+    this.app.innerHTML = `<main class="app-shell battle-screen ${infinite ? 'infinite-battle' : ''}"><header class="battle-header"><button class="icon-button back-map" aria-label="Volver al mapa">‹</button><div class="battle-title"><h1>${battleLabel}</h1></div><div class="battle-progress"><div class="battle-progress-top"><span class="phase-label">${infinite ? 'DAÑO' : 'OLEADA'}</span><b class="progress-value">0%</b></div><div class="progress-track"><i class="wave-progress"></i><span class="progress-marker marker-10"></span><span class="progress-marker marker-20"></span><span class="progress-marker marker-30"></span><span class="progress-marker marker-40"></span><span class="progress-marker marker-50"></span><span class="progress-marker marker-60"></span><span class="progress-marker marker-70"></span><span class="progress-marker marker-80"></span><span class="progress-marker marker-90"></span></div><small class="phase-value">${infinite ? 'FASE EN CURSO' : 'PREPARACIÓN'}</small><small class="next-boss">${infinite ? '' : 'SIGUIENTE · MINIBOSS'}</small></div><div class="battle-resources"><span class="hud-resource coins-resource"><i class="hud-icon coin-icon" aria-hidden="true">◆</i><b class="coins-value">${run.coins}</b></span>${infinite ? '' : `<span class="hud-resource enemies-resource"><i class="hud-icon enemy-icon" aria-hidden="true">●</i><b class="enemy-count">0/${run.totalEnemies}</b></span>`}</div></header><section class="battle-layout"><div class="game-field"><canvas id="battle-canvas" width="540" height="640"></canvas><div class="boss-hud" id="boss-hud"><div><strong class="boss-name">THE TITAN</strong><span class="boss-health-label">100%</span></div><div class="boss-health-track"><i class="boss-progress"></i></div></div><div class="field-hint" id="field-hint">Mantén y arrastra hasta una zona verde</div><div class="boss-warning" id="boss-warning"><span>MINIBOSS</span><strong>THE TITAN</strong></div></div><aside class="battle-side"><div class="tower-shop"><div class="section-label"><span>DEFENSAS</span><small>ARRASTRA AL MAPA</small></div><div class="tower-cards">${Object.values(GAME_CONFIG.towers).map((tower) => `<button class="tower-card" data-tower="${tower.id}" title="Arrastra para colocar o fusionar" style="--rarity-color:${tower.rarityColor}"><span class="tower-art" style="--tower-color:${tower.color}">${this.towerArt(tower.id)}</span><span><strong>${tower.shortName}</strong><small>${tower.name} · ${infinite ? 'NIVEL' : 'NV.'}${this.game.towerLevel(tower.id)}</small></span><em>◆ ${tower.cost}</em></button>`).join('')}</div></div><div class="clicker-zone"><div class="clicker-currency"><i class="hud-icon coin-icon" aria-hidden="true">◆</i><b class="coins-value">${run.coins}</b></div><div class="clicker-card"><button class="clicker-button" id="clicker-button" aria-label="CLICKER ×${currentClickValue}"><span class="clicker-title">CLICKER</span><strong>×<b class="click-value">${currentClickValue}</b></strong></button></div><button class="upgrade-clicker" id="upgrade-clicker" aria-label="MEJORAR a ×${nextClickValue} por ◆ ${clickerCost}"><strong>MEJORAR <span aria-hidden="true">→</span> ×<b class="clicker-next-level">${nextClickValue}</b></strong><span class="clicker-price">◆ <b class="clicker-cost">${clickerCost}</b></span></button></div><div class="tower-panel" id="tower-panel"></div></aside></section><div class="shop-drag-preview" id="shop-drag-preview" aria-hidden="true"></div><div class="feedback" id="feedback"></div><div class="upgrade-overlay" id="upgrade-overlay"></div><div class="result-overlay" id="result-overlay"></div></main>`;
     this.app.querySelectorAll('.tower-card').forEach((card) => {
       const tower = GAME_CONFIG.towers[card.dataset.tower];
       const cost = towerCost(card.dataset.tower, this.game.towerLevel(card.dataset.tower));
@@ -477,7 +499,7 @@ export class UIManager {
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(tower.id);
     }
-    const compatible = groups.get(`${activeDrag.type}:${activeDrag.level}`) || [];
+    const compatible = activeDrag.level < 5 ? (groups.get(`${activeDrag.type}:${activeDrag.level}`) || []) : [];
     const mergeable = new Set(compatible.filter((id) => id !== run.drag?.towerId));
     run.mergeableTowerIds = mergeable;
     return mergeable;
@@ -523,7 +545,7 @@ export class UIManager {
       drag.moved = true;
       const candidate = run.towers.find((tower) => Math.hypot(tower.x - drag.point.x, tower.y - drag.point.y) < 30);
       const level = run.placingLevel || 1;
-      const directTarget = candidate && candidate.type === run.placingType && candidate.level === level ? candidate : null;
+      const directTarget = candidate && candidate.level < 5 && candidate.type === run.placingType && candidate.level === level ? candidate : null;
       run.mergeTargetId = directTarget?.id || null;
       if (directTarget) {
         run.placementPreview = { x: directTarget.x, y: directTarget.y };
@@ -574,7 +596,7 @@ export class UIManager {
       const point = inside ? this.canvasPoint(event) : null;
       const candidate = point && run.towers.find((tower) => Math.hypot(tower.x - point.x, tower.y - point.y) < 30);
       const level = run.placingLevel || 1;
-      const directTarget = candidate && candidate.type === run.placingType && candidate.level === level ? candidate : null;
+      const directTarget = candidate && candidate.level < 5 && candidate.type === run.placingType && candidate.level === level ? candidate : null;
       if (inside && drag.moved && directTarget && this.game.towers.mergePurchased(run.placingType, directTarget.id)) return;
       const finalPoint = run.placementPreview || point;
       if (inside && drag.moved && finalPoint && this.game.towers.getPlacementValidation(finalPoint, run.placingType).valid && this.game.towers.place(finalPoint)) return;
@@ -626,7 +648,7 @@ export class UIManager {
     this.updateMergeIndicators();
     this.updateShopDragPreview();
     const set = (selector, value) => this.app.querySelectorAll(selector).forEach((node) => { node.textContent = value; });
-    set('.coins-value', Math.floor(run.coins)); set('.base-value', `${Math.ceil(run.baseHp)}%`); set('.kills-value', run.kills); set('.enemy-count', `${run.kills}/${run.totalEnemies}`); set('.clicker-cost', this.game.economy.clickerCost() || 'MÁX'); set('.clicker-next-level', GAME_CONFIG.economy.clickValues[run.clickerLevel] || 'MÁX'); set('.phase-value', run.phase?.type === 'boss' ? 'BOSS FINAL' : run.phase?.type === 'miniboss' ? 'MINIBOSS' : run.phase?.type === 'wave' ? `OLEADA ${run.waveNumber}` : run.phaseLabel || 'PREPARACIÓN');
+    set('.coins-value', Math.floor(run.coins)); set('.base-value', `${Math.ceil(run.baseHp)}%`); set('.kills-value', run.kills); if (run.mode !== 'infinite') set('.enemy-count', `${run.kills}/${run.totalEnemies}`); set('.clicker-cost', this.game.economy.clickerCost() || 'MÁX'); set('.clicker-next-level', GAME_CONFIG.economy.clickValues[run.clickerLevel] || 'MÁX'); set('.phase-value', run.mode === 'infinite' ? 'FASE EN CURSO' : run.phase?.type === 'boss' ? 'BOSS FINAL' : run.phase?.type === 'miniboss' ? 'MINIBOSS' : run.phase?.type === 'wave' ? `OLEADA ${run.waveNumber}` : run.phaseLabel || 'PREPARACIÓN');
     const clickValue = GAME_CONFIG.economy.clickValues[Math.min(GAME_CONFIG.economy.clickValues.length - 1, run.clickerLevel - 1)] || 1; set('.click-value', clickValue);
     const clickerButton = this.app.querySelector('#clicker-button');
     if (clickerButton) clickerButton.setAttribute('aria-label', `CLICKER ×${clickValue}`);
@@ -644,16 +666,16 @@ export class UIManager {
       upgradeButton.setAttribute('aria-label', `MEJORAR a ×${GAME_CONFIG.economy.clickValues[run.clickerLevel] || 'MÁX'} por ◆ ${clickerCost || 'MÁX'}`);
       upgradeButton.disabled = !clickerCost;
     }
-    const progress = Math.min(100, Math.floor(run.kills / run.totalEnemies * 100)); const progressNode = this.app.querySelector('.wave-progress'); if (progressNode) progressNode.style.width = `${progress}%`; set('.progress-value', `${progress}%`);
-    const next = run.wavePlan.slice(Math.max(0, run.phaseIndex + 1)).find((item) => item.type === 'miniboss' || item.type === 'boss'); set('.next-boss', run.phase?.type === 'boss' ? 'BOSS FINAL' : next?.type === 'boss' ? 'BOSS FINAL' : 'MINIBOSS');
+    const progress = run.mode === 'infinite' ? Math.min(100, Math.max(0, run.damageDone / Math.max(1, run.damageTarget) * 100)) : Math.min(100, Math.floor(run.kills / Math.max(1, run.totalEnemies) * 100)); const progressNode = this.app.querySelector('.wave-progress'); if (progressNode) progressNode.style.width = `${progress}%`; set('.progress-value', `${Math.floor(progress)}%`);
+    const next = run.wavePlan.slice(Math.max(0, run.phaseIndex + 1)).find((item) => item.type === 'miniboss' || item.type === 'boss'); if (run.mode !== 'infinite') set('.next-boss', run.phase?.type === 'boss' ? 'BOSS FINAL' : next?.type === 'boss' ? 'BOSS FINAL' : 'MINIBOSS');
     const warning = this.app.querySelector('#boss-warning'); if (warning) { warning.classList.toggle('visible', run.bossActive || run.miniBossActive); const label = warning.querySelector('span'); const title = warning.querySelector('strong'); if (label) label.textContent = run.bossActive ? 'BOSS FINAL' : 'MINIBOSS'; if (title) title.textContent = run.bossActive ? 'THE TITAN' : 'MINI JEFE'; }
     const bossHud = this.app.querySelector('#boss-hud'); const boss = run.enemies.find((enemy) => enemy.alive && (enemy.kind === 'boss' || enemy.kind === 'mini')); if (bossHud) { bossHud.classList.toggle('visible', Boolean(boss)); if (boss) { const ratio = Math.max(0, Math.min(1, boss.hp / boss.maxHp)); const bossBar = bossHud.querySelector('.boss-progress'); if (bossBar) bossBar.style.width = `${ratio * 100}%`; const bossName = bossHud.querySelector('.boss-name'); if (bossName) bossName.textContent = boss.kind === 'boss' ? 'THE TITAN' : 'MINI JEFE'; const bossLabel = bossHud.querySelector('.boss-health-label'); if (bossLabel) bossLabel.textContent = `${Math.ceil(ratio * 100)}%`; } }
     const hint = this.app.querySelector('#field-hint'); if (hint) { hint.textContent = run.placingType ? (run.mergeTargetId ? 'FUSIÓN DIRECTA · suelta para combinar' : 'Arrastra · verde coloca · el camino bloquea') : run.drag?.mode === 'merge' ? (run.drag.ready ? 'Suelta sobre una defensa igual para fusionar' : 'Mantén pulsada para fusionar') : 'Toca una defensa para ver sus datos'; hint.classList.toggle('visible', Boolean(run.placingType || run.drag?.mode === 'merge')); }
     const panel = this.app.querySelector('#tower-panel');
     const selected = run.towers.find((tower) => tower.id === run.selectedTowerId);
     if (selected) {
-      const stats = getTowerStats(selected.type, selected.level, run.buffs);
-      const canMerge = run.towers.some((tower) => tower.id !== selected.id && tower.type === selected.type && tower.level === selected.level);
+      const stats = getTowerStats(selected.type, selected.level, run.buffs, this.game.towerLevel(selected.type));
+      const canMerge = selected.level < 5 && run.towers.some((tower) => tower.id !== selected.id && tower.type === selected.type && tower.level === selected.level);
       const panelKey = `${selected.id}:${selected.level}:${canMerge}:${selected.priority}:${JSON.stringify(run.buffs)}`;
       if (panel && panelKey !== this.selectedPanelKey) {
         panel.innerHTML = `<div class="selected-tower"><div class="selected-heading"><span class="tower-icon tower-art" style="--tower-color:${stats.color}">${this.towerArt(selected.type)}</span><div><span class="eyebrow">DEFENSA</span><h3>${stats.name} <b>NV-${selected.level}</b></h3></div><button class="panel-close" aria-label="Cerrar información">×</button></div><div class="selected-stats"><span><small>DAÑO</small><b>${stats.damage}</b></span><span><small>CADENCIA</small><b>${stats.cooldown.toFixed(2)}s</b></span><span><small>ALCANCE</small><b>${Math.round(stats.range)}</b></span></div><div class="tower-action-row"><button data-action="upgrade">MEJORAR</button><button data-action="sell">VENDER</button><button data-action="ability">HABILIDAD</button></div><div class="priority-row"><span>OBJETIVO</span><select class="priority-select"><option value="first">PRIMERO</option><option value="last">ÚLTIMO</option><option value="strong">FUERTE</option><option value="weak">DÉBIL</option><option value="boss">JEFE</option></select></div><button class="merge-button" ${canMerge ? '' : 'disabled'}>FUSIONAR <span>${canMerge ? '◆ LISTA' : '—'}</span></button></div>`;
@@ -732,7 +754,7 @@ export class UIManager {
     ctx.fillStyle = '#18241e'; ctx.font = '900 13px Nunito'; ctx.fillText(`${Math.ceil(run.baseHp)}%`, healthX + 27, healthY + 19);
     const selected = run.towers.find((tower) => tower.id === run.selectedTowerId); const source = run.drag?.mode === 'merge' ? run.towers.find((tower) => tower.id === run.drag.towerId) : null;
     const rangeTower = source || selected;
-    if (rangeTower) { const stats = getTowerStats(rangeTower.type, rangeTower.level, run.buffs); ctx.fillStyle = 'rgba(242, 224, 146, .11)'; ctx.strokeStyle = '#ead58b'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(rangeTower.x, rangeTower.y, stats.range, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+    if (rangeTower) { const stats = getTowerStats(rangeTower.type, rangeTower.level, run.buffs, this.game.towerLevel(rangeTower.type)); ctx.fillStyle = 'rgba(242, 224, 146, .11)'; ctx.strokeStyle = '#ead58b'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(rangeTower.x, rangeTower.y, stats.range, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
     if (run.drag?.mode === 'merge' && run.drag.ready && run.drag.moved) {
       const source = run.towers.find((tower) => tower.id === run.drag.towerId);
       if (source) {
@@ -747,7 +769,7 @@ export class UIManager {
     }
     if (run.placingType && run.placementPreview && run.drag?.inCanvas) {
       const level = run.placingLevel || 1;
-      const stats = getTowerStats(run.placingType, level, run.buffs);
+      const stats = getTowerStats(run.placingType, level, run.buffs, this.game.towerLevel(run.placingType));
       const directMerge = Boolean(run.mergeTargetId);
       const valid = directMerge || Boolean(run.drag.pointerValid && this.game.towers.getPlacementValidation(run.placementPreview, run.placingType).valid);
       const color = directMerge ? '#ffe06f' : valid ? '#66d878' : '#d34a37';
@@ -767,13 +789,13 @@ export class UIManager {
     if (run.drag?.mode === 'merge' && run.drag.ready && run.drag.moved && run.drag.point) {
       const source = run.towers.find((tower) => tower.id === run.drag.towerId);
       if (source) {
-        const stats = getTowerStats(source.type, source.level, run.buffs);
+        const stats = getTowerStats(source.type, source.level, run.buffs, this.game.towerLevel(source.type));
         ctx.fillStyle = 'rgba(242, 224, 146, .08)'; ctx.strokeStyle = 'rgba(234, 213, 139, .55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(run.drag.point.x, run.drag.point.y, stats.range, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         this.drawTower(ctx, { type: source.type, level: source.level, x: run.drag.point.x, y: run.drag.point.y }, stats, false, Boolean(run.mergeTargetId), { scale: 1.08, lift: -7, alpha: .65, held: true });
       }
     }
     if (run.mergeFx && run.mergeFx.until > performance.now()) this.drawMergeEffect(ctx, run);
-    for (const tower of run.towers) { const stats = getTowerStats(tower.type, tower.level, run.buffs); const isTarget = tower.id === run.mergeTargetId; const fx = run.mergeFx && tower.id === run.mergeFx.resultId ? this.mergeProgress(run.mergeFx) : null; const animation = fx ? { scale: .72 + fx * .28, alpha: .45 + fx * .55, lift: (1 - fx) * 6 } : {}; animation.mergeable = run.mergeableTowerIds?.has(tower.id); this.drawTower(ctx, tower, stats, tower.id === run.selectedTowerId, isTarget, animation); }
+    for (const tower of run.towers) { const stats = getTowerStats(tower.type, tower.level, run.buffs, this.game.towerLevel(tower.type)); const isTarget = tower.id === run.mergeTargetId; const fx = run.mergeFx && tower.id === run.mergeFx.resultId ? this.mergeProgress(run.mergeFx) : null; const animation = fx ? { scale: .72 + fx * .28, alpha: .45 + fx * .55, lift: (1 - fx) * 6 } : {}; animation.mergeable = run.mergeableTowerIds?.has(tower.id); this.drawTower(ctx, tower, stats, tower.id === run.selectedTowerId, isTarget, animation); }
     for (const enemy of run.enemies) {
       if (!enemy.alive) continue;
       const p = enemyPosition(enemy);
@@ -799,7 +821,7 @@ export class UIManager {
     if (effect.from) {
       ctx.globalAlpha = 1 - progress;
       const ghost = { type: effect.type, level: effect.level, x: effect.from.x + (effect.x - effect.from.x) * ease, y: effect.from.y + (effect.y - effect.from.y) * ease };
-      this.drawTower(ctx, ghost, getTowerStats(effect.type, effect.level, run.buffs), false, false, { scale: 1 + progress * .12, held: true });
+      this.drawTower(ctx, ghost, getTowerStats(effect.type, effect.level, run.buffs, this.game.towerLevel(effect.type)), false, false, { scale: 1 + progress * .12, held: true });
     }
     ctx.globalAlpha = .7;
     ctx.strokeStyle = `rgba(255, 235, 140, ${1 - progress})`;
@@ -861,7 +883,30 @@ export class UIManager {
     overlay.classList.add('visible');
   }
 
-  renderResult() { const overlay = this.app.querySelector('#result-overlay'); if (!this.game.run.result) { overlay.classList.remove('visible'); overlay.innerHTML = ''; return; } const victory = this.game.run.result === 'victory'; const specialReward = this.game.run.bossCurrencyEarned ? `<br><strong>+${this.game.run.bossCurrencyEarned} ✦ NÚCLEOS DE JEFE</strong>` : ''; overlay.innerHTML = `<div class="result-card ${victory ? 'victory' : 'defeat'}"><span class="eyebrow">${victory ? 'SECTOR ASEGURADO' : 'SEÑAL PERDIDA'}</span><h2>${victory ? 'VICTORIA' : 'LA BASE HA CAÍDO'}</h2><p>${victory ? 'THE TITAN ha sido neutralizado. El siguiente sector está disponible.' : 'Has resistido lo suficiente para recuperar recursos. Inténtalo de nuevo.'}</p>${victory ? `<div class="stars-result">${'★'.repeat(this.game.save.stars[this.game.run.level] || 1)}</div>` : ''}<div class="result-reward">+${victory ? 50 + this.game.run.level * 4 : Math.max(5, Math.floor(this.game.run.kills * .7))} ◆ CHAPA${specialReward}</div><button class="primary-button result-button">${victory ? 'CONTINUAR' : 'VOLVER AL MAPA'} <span>→</span></button></div>`; overlay.classList.add('visible'); overlay.querySelector('.result-button').addEventListener('click', () => this.game.returnToMap()); }
+  renderResult() {
+    const overlay = this.app.querySelector('#result-overlay');
+    const run = this.game.run;
+    if (!run?.result) { overlay.classList.remove('visible'); overlay.innerHTML = ''; this.resultRenderKey = ''; return; }
+    const victory = run.result === 'victory';
+    const key = `${run.mode}:${run.result}:${run.infinitePhase || run.level}`;
+    if (this.resultRenderKey === key) { overlay.classList.add('visible'); return; }
+    this.resultRenderKey = key;
+    if (run.mode === 'infinite') {
+      const reward = victory ? this.game.infiniteRewardFor(run.infinitePhase) : null;
+      overlay.innerHTML = `<div class="result-card ${victory ? 'victory' : 'defeat'}"><span class="eyebrow">${victory ? 'FASE ASEGURADA' : 'SEÑAL PERDIDA'}</span><h2>${victory ? `FASE ${run.infinitePhase} SUPERADA` : 'EL REFUGIO HA CAÍDO'}</h2><p>${victory ? 'El daño objetivo se ha completado. Elige si quieres continuar o guardar tu intento.' : `El intento baja a la fase ${this.game.save.infinite.currentPhase}. Tus defensas y monedas de esta partida se han perdido.`}</p>${reward ? `<div class="result-reward">RECOMPENSA ÚNICA · ${this.rewardLabel(reward)}</div>` : '<div class="result-reward">SIN RECOMPENSA REPETIDA</div>'}<div class="result-actions">${victory ? '<button class="primary-button result-button" data-result="next">SIGUIENTE FASE <span>→</span></button><button class="soft-button result-button" data-result="save">GUARDAR Y SALIR</button>' : '<button class="primary-button result-button" data-result="retry">REINTENTAR <span>→</span></button><button class="soft-button result-button" data-result="upgrades">MEJORAR CARTAS</button><button class="soft-button result-button" data-result="map">VOLVER AL MAPA</button>'}</div></div>`;
+      overlay.querySelectorAll('[data-result]').forEach((button) => button.addEventListener('click', () => {
+        if (button.dataset.result === 'next') this.game.advanceInfinitePhase();
+        if (button.dataset.result === 'save' || button.dataset.result === 'map') this.game.saveAndExitInfinite();
+        if (button.dataset.result === 'retry') this.game.retryInfinite();
+        if (button.dataset.result === 'upgrades') this.game.openInfiniteUpgrades({ discardRun: true });
+      }));
+    } else {
+      const specialReward = run.bossCurrencyEarned ? `<br><strong>+${run.bossCurrencyEarned} ✦ NÚCLEOS DE JEFE</strong>` : '';
+      overlay.innerHTML = `<div class="result-card ${victory ? 'victory' : 'defeat'}"><span class="eyebrow">${victory ? 'SECTOR ASEGURADO' : 'SEÑAL PERDIDA'}</span><h2>${victory ? 'VICTORIA' : 'LA BASE HA CAÍDO'}</h2><p>${victory ? 'THE TITAN ha sido neutralizado. El siguiente sector está disponible.' : 'Has resistido lo suficiente para recuperar recursos. Inténtalo de nuevo.'}</p>${victory ? `<div class="stars-result">${'★'.repeat(this.game.save.stars[run.level] || 1)}</div>` : ''}<div class="result-reward">+${victory ? 50 + run.level * 4 : Math.max(5, Math.floor(run.kills * .7))} ◆ CHAPA${specialReward}</div><button class="primary-button result-button" data-result="map">${victory ? 'CONTINUAR' : 'VOLVER AL MAPA'} <span>→</span></button></div>`;
+      overlay.querySelector('[data-result="map"]').addEventListener('click', () => this.game.returnToMap());
+    }
+    overlay.classList.add('visible');
+  }
 
   renderFeedback() { const node = this.app.querySelector('#feedback'); if (!node || !this.game.feedbackMessage) return; const feedback = this.game.feedbackMessage; node.textContent = feedback.message; node.className = `feedback visible ${feedback.kind}`; if (feedback.expires < performance.now()) node.className = 'feedback'; }
 

@@ -51,6 +51,33 @@ export const GAME_CONFIG = {
       maxPerPhaseStep: 1,
     },
   },
+  infinite: {
+    startingPhase: 1,
+    startingCoins: 120,
+    reconstructionCoinsPerPhase: 8,
+    reconstructionCoinsCap: 160,
+    baseHp: 100,
+    targetBase: 360,
+    targetGrowth: 1.22,
+    targetLinear: 95,
+    hpGrowth: 1.075,
+    speedGrowth: 1.012,
+    spawnIntervalStart: 2.9,
+    spawnIntervalMin: 0.62,
+    spawnIntervalStep: 0.045,
+    maxActiveBase: 8,
+    maxActivePerPhase: 0.55,
+    maxActiveCap: 24,
+    maxThreatBase: 10,
+    maxThreatPerPhase: 1.15,
+    maxThreatCap: 42,
+    dangerousEventCooldown: 4.5,
+    rewardPhases: {
+      first: { scrap: 35, crystals: 1 },
+      milestoneEvery: 5,
+      milestone: { scrap: 70, crystals: 2, technology: 1 },
+    },
+  },
   towers: {
     gunner: { id: 'gunner', name: 'Ametralladora', shortName: 'AMT', icon: '▦', rarity: 'Común', rarityColor: '#aeb7b4', color: '#aeb7b4', cost: 100, damage: 15, cooldown: 0.46, range: 130, type: 'Bala', splash: 0, description: 'Cadencia rápida y fiable.' },
     cannon: { id: 'cannon', name: 'Cañón', shortName: 'CAÑ', icon: '◉', rarity: 'Rara', rarityColor: '#66b8e8', color: '#66b8e8', cost: 150, damage: 62, cooldown: 1.35, range: 175, type: 'Explosivo', splash: 56, description: 'Golpea grupos con explosiones.' },
@@ -91,6 +118,31 @@ export function getLevelDifficulty(level) {
     miniBossThresholds: [...thresholds],
     bossHp: tuning.bossHpBase + level * tuning.bossHpPerLevel,
     bossUnlockDelay: tuning.bossUnlockDelay + Math.min(1.5, step * 0.08),
+  };
+}
+
+const finitePositive = (value, fallback) => Number.isFinite(value) && value > 0 ? value : fallback;
+const clampFinite = (value, min, max) => Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
+
+export function getInfinitePhaseConfig(phase) {
+  const safePhase = Math.max(1, Math.floor(Number(phase) || 1));
+  const step = safePhase - 1;
+  const infinite = GAME_CONFIG.infinite;
+  const target = Math.max(1, Math.min(Number.MAX_SAFE_INTEGER / 4,
+    Math.round(finitePositive(infinite.targetBase, 360) * Math.pow(finitePositive(infinite.targetGrowth, 1.22), Math.min(step, 180)) + step * finitePositive(infinite.targetLinear, 95))));
+  const hpMultiplier = Math.min(1e6, Math.pow(finitePositive(infinite.hpGrowth, 1.075), Math.min(step, 180)));
+  const speedMultiplier = Math.min(3.5, Math.pow(finitePositive(infinite.speedGrowth, 1.012), Math.min(step, 180)));
+  const spawnInterval = clampFinite(finitePositive(infinite.spawnIntervalStart, 2.9) - step * finitePositive(infinite.spawnIntervalStep, .045), finitePositive(infinite.spawnIntervalMin, .62), 20);
+  return {
+    phase: safePhase,
+    targetDamage: target,
+    enemyHpMultiplier: hpMultiplier,
+    enemySpeedMultiplier: speedMultiplier,
+    spawnInterval,
+    maxActive: Math.round(clampFinite(finitePositive(infinite.maxActiveBase, 8) + step * finitePositive(infinite.maxActivePerPhase, .55), 4, finitePositive(infinite.maxActiveCap, 24))),
+    maxThreat: clampFinite(finitePositive(infinite.maxThreatBase, 10) + step * finitePositive(infinite.maxThreatPerPhase, 1.15), 6, finitePositive(infinite.maxThreatCap, 42)),
+    reconstructionCoins: Math.round(finitePositive(infinite.startingCoins, 120) + Math.min(finitePositive(infinite.reconstructionCoinsCap, 160), step * finitePositive(infinite.reconstructionCoinsPerPhase, 8))),
+    dangerousEventCooldown: Math.max(2.2, finitePositive(infinite.dangerousEventCooldown, 4.5) - Math.min(1.4, step * .025)),
   };
 }
 

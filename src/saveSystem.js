@@ -12,6 +12,14 @@ const DEFAULT_SAVE = {
   towerLevels: {},
   selectedCommander: 'engineer',
   unlockedTowers: ['gunner', 'cannon', 'flame', 'sniper', 'tesla', 'mortar'],
+  infinite: {
+    currentPhase: 1,
+    record: 0,
+    seed: 2654435769,
+    completedPhases: [],
+    rewardsClaimed: [],
+    activeRun: null,
+  },
   settings: { sound: true, haptics: true, developer: false },
 };
 
@@ -39,14 +47,31 @@ function normalizeSave(value) {
     unlockedTowers: Array.isArray(data.unlockedTowers)
       ? [...new Set([...data.unlockedTowers, ...DEFAULT_SAVE.unlockedTowers])]
       : [...DEFAULT_SAVE.unlockedTowers],
+    infinite: normalizeInfinite(data.infinite),
     settings: { ...DEFAULT_SAVE.settings, ...(data.settings && typeof data.settings === 'object' ? data.settings : {}) },
+  };
+}
+
+function normalizeInfinite(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const phase = Number.isFinite(Number(source.currentPhase)) ? Math.max(1, Math.floor(Number(source.currentPhase))) : 1;
+  return {
+    ...freshSave().infinite,
+    ...source,
+    currentPhase: phase,
+    record: Number.isFinite(Number(source.record)) ? Math.max(0, Math.floor(Number(source.record))) : 0,
+    seed: Number.isFinite(Number(source.seed)) ? Number(source.seed) >>> 0 : freshSave().infinite.seed,
+    completedPhases: Array.isArray(source.completedPhases) ? [...new Set(source.completedPhases.map(Number).filter((item) => Number.isFinite(item) && item >= 1).map(Math.floor))] : [],
+    rewardsClaimed: Array.isArray(source.rewardsClaimed) ? [...new Set(source.rewardsClaimed.map(Number).filter((item) => Number.isFinite(item) && item >= 1).map(Math.floor))] : [],
+    activeRun: source.activeRun && typeof source.activeRun === 'object' ? source.activeRun : null,
   };
 }
 
 export class SaveSystem {
   static load() {
     try {
-      const raw = localStorage.getItem(KEY);
+      const storage = typeof localStorage !== 'undefined' ? localStorage : null;
+      const raw = storage?.getItem(KEY);
       return normalizeSave(raw ? JSON.parse(raw) : null);
     } catch (error) {
       console.warn('No se pudo leer la partida guardada; se usará una nueva.', error);
@@ -56,7 +81,9 @@ export class SaveSystem {
 
   static save(data) {
     try {
-      localStorage.setItem(KEY, JSON.stringify(data));
+      const storage = typeof localStorage !== 'undefined' ? localStorage : null;
+      if (!storage?.setItem) return;
+      storage.setItem(KEY, JSON.stringify(data));
     } catch (error) {
       console.warn('No se pudo guardar la partida; la sesión seguirá siendo jugable.', error);
     }
