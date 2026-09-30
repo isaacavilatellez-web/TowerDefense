@@ -1228,14 +1228,15 @@ body { overflow:hidden; }
 
 /* El CTA de mejora queda anclado al final de la columna, con una altura legible. */
 .battle-screen .upgrade-clicker {
-  min-height:46px;
+  min-height:40px;
   height:auto;
   margin-top:auto;
-  margin-bottom:2px;
-  padding:7px 8px;
+  margin-bottom:0;
+  padding:5px 8px;
   gap:6px;
   align-items:center;
   line-height:1;
+  font-size:clamp(.56rem,1.5vw,.72rem);
 }
 .battle-screen .upgrade-clicker strong {
   min-width:0;
