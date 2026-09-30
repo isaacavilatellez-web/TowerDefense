@@ -10,6 +10,7 @@ import { RoguelikeManager } from './roguelikeManager.js';
 import { LevelManager } from './levelManager.js';
 import { AudioManager } from './audioManager.js';
 import { getWavePlan } from './levelData.js';
+import { InfiniteDirector } from './infiniteMode.js';
 
 export class GameManager {
   constructor(ui) {
@@ -22,6 +23,7 @@ export class GameManager {
     this.towers = new TowerManager(this);
     this.enemies = new EnemyManager(this);
     this.waves = new WaveManager(this);
+    this.infinite = new InfiniteDirector(this);
     this.roguelike = new RoguelikeManager(this);
     this.feedbackMessage = null;
     this.lastTime = 0;
@@ -75,6 +77,145 @@ export class GameManager {
     }
   }
 
+  infiniteUnlocked() {
+    return Boolean(this.save.settings?.developer || this.save.completedLevels.length > 0);
+  }
+
+  startInfinite() {
+    if (!this.infiniteUnlocked()) return false;
+    this.stopLoop();
+    const savedRun = this.save.settings?.developer ? null : this.save.infinite?.currentRun;
+    try {
+      if (savedRun) {
+        this.run = this.restoreInfiniteRun(savedRun);
+      } else {
+        const phase = Math.max(1, this.save.infinite?.currentPhase || 1);
+        const attempt = Math.max(0, this.save.infinite?.attempt || 0) + 1;
+        if (!this.save.settings?.developer) this.save.infinite.attempt = attempt;
+        const map = MapGenerator.generate(1);
+        this.run = this.createInfiniteRun(phase, attempt, map);
+      }
+      if (!this.ui.showBattle()) {
+        this.run = null;
+        return false;
+      }
+      this.ui.render();
+      this.saveInfiniteRun();
+      this.lastTime = performance.now();
+      this.loopActive = true;
+      this.frame = requestAnimationFrame((time) => this.loop(time));
+      return true;
+    } catch (error) {
+      console.error('No se pudo iniciar el modo infinito', error);
+      this.run = null;
+      this.ui.showInfiniteHub();
+      this.ui.showToast('No se pudo cargar el modo infinito.');
+      return false;
+    }
+  }
+
+  createInfiniteRun(phase, attempt, map, debugTowerLevels = {}) {
+    const state = this.infinite.createAttemptState(phase, attempt);
+    return {
+      level: 1,
+      meta: { level: 1, name: 'Modo infinito' },
+      map,
+      developerRun: Boolean(this.save.settings?.developer),
+      baseHp: GAME_CONFIG.levels.startingBaseHp,
+      baseMaxHp: GAME_CONFIG.levels.startingBaseHp,
+      coins: state.difficulty.rebuildBudget,
+      clickerLevel: 1,
+      autoCoins: 0,
+      autoCoinTimer: 0,
+      clicks: 0,
+      towers: [],
+      enemies: [],
+      projectiles: [],
+      nextEnemyId: 1,
+      difficulty: state.difficulty,
+      wavePlan: [],
+      phaseIndex: -1,
+      phase: null,
+      phaseSpawned: 0,
+      phaseKills: 0,
+      phaseLeaks: 0,
+      phaseLabel: `FASE ${phase}`,
+      phaseTimer: 0,
+      phaseCountdown: 0,
+      waveNumber: 0,
+      totalEnemies: 0,
+      totalWaves: 0,
+      spawned: 0,
+      ambientSpawned: 0,
+      ambientSpawnedThisPhase: 0,
+      ambientTimer: 0,
+      kills: 0,
+      leaks: 0,
+      spawnTimer: 0,
+      bossReadyTimer: 0,
+      bossActive: false,
+      miniBossActive: false,
+      bossCurrencyEarned: 0,
+      miniBosses: [],
+      upgradeOptions: [],
+      pausedForUpgrade: false,
+      buffs: {},
+      placingType: null,
+      placingLevel: 1,
+      selectedTowerId: null,
+      mergeTargetId: null,
+      mergeableTowerIds: new Set(),
+      drag: null,
+      mergeFx: null,
+      placementPreview: null,
+      ended: false,
+      result: null,
+      devTowerLevels: debugTowerLevels,
+      infinite: state,
+    };
+  }
+
+  startInfiniteForDeveloper(phase = 1, towerType = 'gunner', towerLevel = 1) {
+    if (!this.save.settings?.developer) return false;
+    this.stopLoop();
+    const safePhase = Math.max(1, Math.min(999, Math.floor(Number(phase) || 1)));
+    const safeLevel = Math.max(1, Math.min(20, Math.floor(Number(towerLevel) || 1)));
+    const map = MapGenerator.generate(1);
+    this.run = this.createInfiniteRun(safePhase, this.save.infinite?.attempt || 0, map, { [towerType]: safeLevel });
+    if (!this.ui.showBattle()) { this.run = null; return false; }
+    this.ui.render();
+    this.lastTime = performance.now();
+    this.loopActive = true;
+    this.frame = requestAnimationFrame((time) => this.loop(time));
+    return true;
+  }
+
+  restoreInfiniteRun(snapshot) {
+    const phase = snapshot.infinite?.activePhase || this.save.infinite?.currentPhase || 1;
+    const difficulty = snapshot.infinite?.difficulty || this.infinite.createAttemptState(phase, this.save.infinite?.attempt || 0).difficulty;
+    const infiniteState = {
+      ...snapshot.infinite,
+      activePhase: phase,
+      difficulty,
+      targetDamage: Number.isFinite(Number(snapshot.infinite?.targetDamage)) ? Number(snapshot.infinite.targetDamage) : difficulty.targetDamage,
+      damage: Math.max(0, Number(snapshot.infinite?.damage) || 0),
+      activeThreat: Math.max(0, Number(snapshot.infinite?.activeThreat) || 0),
+      rngState: Number(snapshot.infinite?.rngState) >>> 0,
+      phaseTransition: Boolean(snapshot.infinite?.phaseTransition),
+    };
+    return {
+      ...this.createInfiniteRun(phase, snapshot.infinite?.attempt || this.save.infinite?.attempt || 1, snapshot.map || MapGenerator.generate(1)),
+      ...snapshot,
+      map: snapshot.map || MapGenerator.generate(1),
+      difficulty,
+      infinite: infiniteState,
+      mergeableTowerIds: new Set(),
+      drag: null,
+      ended: false,
+      result: null,
+    };
+  }
+
   loop(time) {
     if (!this.loopActive || !this.run) return;
     const delta = Math.min(0.05, (time - this.lastTime) / 1000);
@@ -92,6 +233,10 @@ export class GameManager {
   }
 
   update(delta) {
+    if (this.run?.infinite) {
+      this.updateInfinite(delta);
+      return;
+    }
     this.economy.tick(delta);
     this.waves.tick(delta);
     this.enemies.tick(delta);
@@ -116,8 +261,45 @@ export class GameManager {
     SaveSystem.save(this.save);
   }
 
+  updateInfinite(delta) {
+    const run = this.run;
+    if (!run || run.ended || run.infinite.phaseTransition) {
+      if (run?.infinite) this.saveInfiniteRun();
+      return;
+    }
+    this.economy.tick(delta);
+    this.infinite.tick(delta);
+    this.enemies.tick(delta);
+    if (run.ended) return;
+    this.towers.tick(delta);
+    for (const projectile of run.projectiles) {
+      projectile.life -= delta;
+      if (projectile.life <= 0) {
+        this.enemies.hit(projectile.targetId, projectile.damage, projectile.splash, projectile.to, projectile);
+        projectile.done = true;
+      }
+    }
+    run.projectiles = run.projectiles.filter((projectile) => !projectile.done);
+    // El refugio se comprueba primero. Así, un impacto letal y el último daño
+    // del objetivo en el mismo paso siempre cuentan como derrota.
+    if (run.baseHp <= 0) {
+      this.endRun(false);
+      return;
+    }
+    if (run.infinite.damage >= run.infinite.targetDamage && !run.infinite.phaseTransition) {
+      this.completeInfinitePhase();
+      return;
+    }
+    this.saveInfiniteRun();
+  }
+
   endRun(victory) {
     if (!this.run || this.run.ended) return;
+    if (this.run.infinite) {
+      if (victory) this.completeInfinitePhase();
+      else this.defeatInfinite();
+      return;
+    }
     this.run.ended = true;
     this.run.result = victory ? 'victory' : 'defeat';
     if (victory && !this.run.developerRun) {
@@ -135,7 +317,10 @@ export class GameManager {
     this.ui.render();
   }
 
-  towerLevel(type) { return Math.max(1, Number(this.save.towerLevels?.[type]) || 1); }
+  towerLevel(type) {
+    const debugLevel = this.run?.developerRun ? this.run.devTowerLevels?.[type] : null;
+    return Math.max(1, Number(debugLevel || this.save.towerLevels?.[type]) || 1);
+  }
 
   towerUpgradeCost(type) {
     return 2 + this.towerLevel(type) * 3;
@@ -148,6 +333,129 @@ export class GameManager {
     this.save.crystals -= cost;
     this.save.towerLevels[type] = this.towerLevel(type) + 1;
     SaveSystem.save(this.save);
+    if (this.run?.infinite) this.saveInfiniteRun();
+    return true;
+  }
+
+  saveInfiniteRun() {
+    if (!this.run?.infinite || this.run.developerRun) return;
+    this.save.infinite.currentRun = this.infinite.finiteRunSnapshot(this.run);
+    SaveSystem.save(this.save);
+  }
+
+  claimInfiniteReward(phase) {
+    const reward = this.infinite.firstReward(phase);
+    const milestone = this.infinite.milestoneReward(phase);
+    const total = {
+      scrap: reward.scrap + (milestone?.scrap || 0),
+      technology: reward.technology + (milestone?.technology || 0),
+      crystals: milestone?.crystals || 0,
+    };
+    const key = `phase:${phase}`;
+    if (this.run?.developerRun) return total;
+    if (!this.save.infinite.claimedRewards.includes(key)) {
+      this.save.infinite.claimedRewards.push(key);
+      this.save.scrap += total.scrap;
+      this.save.technology += total.technology;
+      this.save.crystals += total.crystals;
+      SaveSystem.save(this.save);
+      return total;
+    }
+    return { scrap: 0, technology: 0, crystals: 0 };
+  }
+
+  completeInfinitePhase() {
+    const run = this.run;
+    if (!run?.infinite || run.ended || run.infinite.phaseTransition || run.baseHp <= 0) return false;
+    const completed = run.infinite.activePhase;
+    run.infinite.phaseTransition = true;
+    run.infinite.completedPhase = completed;
+    run.infinite.nextPhase = completed + 1;
+    run.infinite.lastReward = this.claimInfiniteReward(completed);
+    run.infinite.damage = 0;
+    run.infinite.activeThreat = 0;
+    run.baseHp = run.baseMaxHp;
+    run.enemies = [];
+    run.projectiles = [];
+    if (!run.developerRun) {
+      this.save.infinite.highestCompletedPhase = Math.max(this.save.infinite.highestCompletedPhase || 0, completed);
+      this.save.infinite.currentPhase = Math.max(this.save.infinite.currentPhase || 1, completed + 1);
+      this.save.infinite.bestPhase = Math.max(this.save.infinite.bestPhase || 1, completed + 1);
+    }
+    run.result = 'infinite-phase-complete';
+    this.saveInfiniteRun();
+    this.audio.ping(720, 0.24);
+    return true;
+  }
+
+  nextInfinitePhase() {
+    const run = this.run;
+    if (!run?.infinite?.phaseTransition) return false;
+    const phase = run.infinite.nextPhase || this.save.infinite.currentPhase || 1;
+    this.infinite.beginPhase(run, phase);
+    run.difficulty = run.infinite.difficulty;
+    run.phaseLabel = `FASE ${phase}`;
+    run.result = null;
+    this.saveInfiniteRun();
+    return true;
+  }
+
+  defeatInfinite() {
+    const run = this.run;
+    if (!run?.infinite || run.ended) return false;
+    const previous = run.infinite.activePhase;
+    const next = Math.max(1, previous - 1);
+    run.ended = true;
+    run.result = 'infinite-defeat';
+    run.infinite.defeatPhase = previous;
+    run.infinite.newPhase = next;
+    run.infinite.damageAtDefeat = Math.max(0, run.infinite.damage);
+    run.infinite.targetAtDefeat = run.infinite.targetDamage;
+    run.enemies = [];
+    run.projectiles = [];
+    run.infinite.activeThreat = 0;
+    if (!run.developerRun) {
+      this.save.infinite.currentPhase = next;
+      this.save.infinite.currentRun = null;
+      SaveSystem.save(this.save);
+    }
+    this.audio.ping(150, 0.18);
+    return true;
+  }
+
+  retryInfinite() {
+    if (this.run?.result !== 'infinite-defeat') return false;
+    this.run = null;
+    return this.startInfinite();
+  }
+
+  abandonInfinite() {
+    if (!this.run?.infinite || this.run.ended) return false;
+    this.endRun(false);
+    return true;
+  }
+
+  abandonSavedInfinite() {
+    const saved = this.save.infinite?.currentRun;
+    const active = saved?.infinite?.activePhase || this.save.infinite?.currentPhase || 1;
+    this.save.infinite.currentPhase = Math.max(1, active - 1);
+    this.save.infinite.currentRun = null;
+    SaveSystem.save(this.save);
+    this.ui.showInfiniteHub();
+  }
+
+  leaveInfiniteToMenu() {
+    this.stopLoop();
+    this.run = null;
+    this.ui.showMap();
+  }
+
+  saveAndExitInfinite() {
+    if (!this.run?.infinite) return false;
+    this.saveInfiniteRun();
+    this.stopLoop();
+    this.run = null;
+    this.ui.showInfiniteHub();
     return true;
   }
 
@@ -183,6 +491,7 @@ export class GameManager {
   }
 
   returnToMap() {
+    if (this.run?.infinite) return this.saveAndExitInfinite();
     const runLevel = this.run?.level;
     const completedLevel = this.run?.result === 'victory' && !this.run.developerRun ? runLevel : null;
     this.stopLoop();
