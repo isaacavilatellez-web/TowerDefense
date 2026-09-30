@@ -1225,3 +1225,29 @@ body { overflow:hidden; }
 @media (max-width:900px) {
   .battle-screen .clicker-button { min-height:0; }
 }
+
+/* El CTA de mejora queda anclado al final de la columna, con una altura legible. */
+.battle-screen .upgrade-clicker {
+  min-height:46px;
+  height:auto;
+  margin-top:auto;
+  margin-bottom:2px;
+  padding:7px 8px;
+  gap:6px;
+  align-items:center;
+  line-height:1;
+}
+.battle-screen .upgrade-clicker strong {
+  min-width:0;
+  color:#16251c;
+  white-space:nowrap;
+}
+.battle-screen .upgrade-clicker .clicker-price {
+  flex:0 0 auto;
+  color:#795f20;
+  white-space:nowrap;
+}
+
+@media (max-width:900px) {
+  .battle-screen .clicker-zone { align-self:stretch; }
+}
