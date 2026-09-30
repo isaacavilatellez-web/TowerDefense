@@ -5,7 +5,6 @@ export class EconomyManager {
 
   click() {
     const { run } = this.game;
-    if (!run || run.ended) return;
     const values = GAME_CONFIG.economy.clickValues;
     const amount = values[Math.min(values.length - 1, Math.max(0, run.clickerLevel - 1))] || 1;
     run.coins += amount;
@@ -15,8 +14,6 @@ export class EconomyManager {
 
   upgradeClicker() {
     const { run } = this.game;
-    if (!run || run.ended) return false;
-    if (run.infinite && run.clickerLevel >= GAME_CONFIG.infinite.clicker.maxLevel) return false;
     const cost = this.clickerCost();
     if (!cost || run.coins < cost) return false;
     run.coins -= cost;
@@ -26,9 +23,7 @@ export class EconomyManager {
   }
 
   clickerCost() {
-    const run = this.game.run;
-    if (!run || (run.infinite && run.clickerLevel >= GAME_CONFIG.infinite.clicker.maxLevel)) return null;
-    return GAME_CONFIG.economy.clickerUpgradeCosts[run.clickerLevel - 1] || null;
+    return GAME_CONFIG.economy.clickerUpgradeCosts[this.game.run.clickerLevel - 1] || null;
   }
 
   tick(seconds) {

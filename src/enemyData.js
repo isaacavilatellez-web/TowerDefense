@@ -1,11 +1,9 @@
 import { GAME_CONFIG, getLevelDifficulty } from './config.js';
 
-export function createEnemy(kind, level, path, id, options = {}) {
+export function createEnemy(kind, level, path, id) {
   const base = GAME_CONFIG.enemies[kind];
   const difficulty = getLevelDifficulty(level);
-  const hpMultiplier = Number.isFinite(options.hpMultiplier) ? options.hpMultiplier : difficulty.enemyHpMultiplier;
-  const speedMultiplier = Number.isFinite(options.speedMultiplier) ? options.speedMultiplier : difficulty.enemySpeedMultiplier;
-  const hp = kind === 'boss' ? (options.bossHp || difficulty.bossHp) : base.hp * hpMultiplier;
+  const hp = kind === 'boss' ? difficulty.bossHp : base.hp * difficulty.enemyHpMultiplier;
   const segmentLengths = path.slice(0, -1).map((point, index) => Math.hypot(path[index + 1].x - point.x, path[index + 1].y - point.y));
   return {
     id,
@@ -13,7 +11,7 @@ export function createEnemy(kind, level, path, id, options = {}) {
     name: base.name,
     hp,
     maxHp: hp,
-    speed: base.speed * speedMultiplier,
+    speed: base.speed * difficulty.enemySpeedMultiplier,
     reward: Math.round(base.reward * (1 + Math.min(
       GAME_CONFIG.economy.rewardLevelBonusCap,
       Math.max(0, level - 1) * GAME_CONFIG.economy.rewardLevelStep,
@@ -33,7 +31,6 @@ export function createEnemy(kind, level, path, id, options = {}) {
     slowFactor: 1,
     slowTimer: 0,
     pulse: 0,
-    threat: Number.isFinite(options.threat) ? options.threat : ({ normal: 1, runner: 1.15, tank: 2.8, mini: 6, boss: 10 }[kind] || 1),
   };
 }
 

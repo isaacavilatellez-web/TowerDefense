@@ -12,14 +12,6 @@ const DEFAULT_SAVE = {
   towerLevels: {},
   selectedCommander: 'engineer',
   unlockedTowers: ['gunner', 'cannon', 'flame', 'sniper', 'tesla', 'mortar'],
-  infinite: {
-    currentPhase: 1,
-    bestPhase: 1,
-    highestCompletedPhase: 0,
-    claimedRewards: [],
-    attempt: 0,
-    currentRun: null,
-  },
   settings: { sound: true, haptics: true, developer: false },
 };
 
@@ -47,25 +39,7 @@ function normalizeSave(value) {
     unlockedTowers: Array.isArray(data.unlockedTowers)
       ? [...new Set([...data.unlockedTowers, ...DEFAULT_SAVE.unlockedTowers])]
       : [...DEFAULT_SAVE.unlockedTowers],
-    infinite: normalizeInfinite(data.infinite),
     settings: { ...DEFAULT_SAVE.settings, ...(data.settings && typeof data.settings === 'object' ? data.settings : {}) },
-  };
-}
-
-function normalizeInfinite(value) {
-  const data = value && typeof value === 'object' ? value : {};
-  const phase = (key, fallback) => Number.isFinite(Number(data[key]))
-    ? Math.max(1, Math.floor(Number(data[key])))
-    : fallback;
-  return {
-    ...freshSave().infinite,
-    ...data,
-    currentPhase: phase('currentPhase', 1),
-    bestPhase: phase('bestPhase', 1),
-    highestCompletedPhase: Number.isFinite(Number(data.highestCompletedPhase)) ? Math.max(0, Math.floor(Number(data.highestCompletedPhase))) : 0,
-    claimedRewards: Array.isArray(data.claimedRewards) ? [...new Set(data.claimedRewards.map((item) => String(item)))] : [],
-    attempt: Number.isFinite(Number(data.attempt)) ? Math.max(0, Math.floor(Number(data.attempt))) : 0,
-    currentRun: data.currentRun && typeof data.currentRun === 'object' ? data.currentRun : null,
   };
 }
 

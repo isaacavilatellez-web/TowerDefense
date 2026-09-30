@@ -3,10 +3,10 @@ import { GAME_CONFIG } from './config.js';
 export class RoguelikeManager {
   constructor(game) { this.game = game; }
 
-  offer(random = Math.random) {
+  offer() {
     const pool = [...GAME_CONFIG.roguelike];
     const options = [];
-    while (options.length < 3 && pool.length) options.push(pool.splice(Math.floor(random() * pool.length), 1)[0]);
+    while (options.length < 3 && pool.length) options.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
     this.game.run.upgradeOptions = options;
     this.game.run.pausedForUpgrade = true;
   }

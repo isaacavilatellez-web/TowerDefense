@@ -51,46 +51,7 @@ export const GAME_CONFIG = {
       maxPerPhaseStep: 1,
     },
   },
-  infinite: {
-    // Balance del modo infinito. Los tramos evitan que las fases altas crezcan
-    // hasta valores que rompan el rendimiento o la legibilidad en móvil.
-    damage: {
-      base: 2400,
-      linear: 310,
-      growth: 1.105,
-      cap: 280000,
-    },
-    pressure: {
-      threatMin: 6,
-      threatMax: 9,
-      threatStep: 0.52,
-      maxThreat: 25,
-      maxEnemies: 18,
-      hpGrowth: 0.072,
-      speedGrowth: 0.011,
-      speedCap: 0.38,
-      spawnIntervalStart: 2.8,
-      spawnIntervalMin: 0.72,
-      spawnIntervalStep: 0.035,
-      eventGapStart: 2.1,
-      eventGapMin: 0.9,
-    },
-    budget: { base: 520, perPhase: 22, cap: 820 },
-    rewards: {
-      firstPhaseScrapBase: 18,
-      firstPhaseScrapStep: 4,
-      firstPhaseTechnologyEvery: 4,
-      milestone: {
-        5: { scrap: 70, technology: 1, crystals: 0 },
-        10: { scrap: 115, technology: 2, crystals: 1 },
-        20: { scrap: 210, technology: 3, crystals: 2 },
-        30: { scrap: 360, technology: 5, crystals: 3 },
-      },
-    },
-    clicker: { maxLevel: 7 },
-  },
   towers: {
-    maxEvolution: 5,
     gunner: { id: 'gunner', name: 'Ametralladora', shortName: 'AMT', icon: '▦', rarity: 'Común', rarityColor: '#aeb7b4', color: '#aeb7b4', cost: 100, damage: 15, cooldown: 0.46, range: 130, type: 'Bala', splash: 0, description: 'Cadencia rápida y fiable.' },
     cannon: { id: 'cannon', name: 'Cañón', shortName: 'CAÑ', icon: '◉', rarity: 'Rara', rarityColor: '#66b8e8', color: '#66b8e8', cost: 150, damage: 62, cooldown: 1.35, range: 175, type: 'Explosivo', splash: 56, description: 'Golpea grupos con explosiones.' },
     flame: { id: 'flame', name: 'Lanzallamas', shortName: 'FLM', icon: '✦', rarity: 'Épica', rarityColor: '#c36be2', color: '#c36be2', cost: 210, damage: 14, cooldown: 0.22, range: 96, type: 'Fuego', splash: 38, description: 'Daño continuo en corto alcance.' },
@@ -130,30 +91,6 @@ export function getLevelDifficulty(level) {
     miniBossThresholds: [...thresholds],
     bossHp: tuning.bossHpBase + level * tuning.bossHpPerLevel,
     bossUnlockDelay: tuning.bossUnlockDelay + Math.min(1.5, step * 0.08),
-  };
-}
-
-export function getInfiniteDifficulty(phase) {
-  const safePhase = Math.max(1, Math.floor(Number(phase) || 1));
-  const step = safePhase - 1;
-  const tuning = GAME_CONFIG.infinite;
-  const targetDamage = Math.min(
-    tuning.damage.cap,
-    Math.round(tuning.damage.base * Math.pow(tuning.damage.growth, step) + tuning.damage.linear * step),
-  );
-  const pressure = tuning.pressure;
-  return {
-    phase: safePhase,
-    targetDamage,
-    enemyHpMultiplier: Math.min(45, 1 + step * pressure.hpGrowth + Math.pow(step, 1.18) * 0.018),
-    enemySpeedMultiplier: 1 + Math.min(pressure.speedCap, step * pressure.speedGrowth),
-    threatMin: pressure.threatMin + step * pressure.threatStep,
-    threatMax: Math.min(pressure.maxThreat, pressure.threatMax + step * pressure.threatStep),
-    maxThreat: Math.min(pressure.maxThreat, pressure.threatMax + step * pressure.threatStep * 1.35),
-    maxEnemies: Math.min(pressure.maxEnemies, 8 + Math.floor(step * 0.42)),
-    spawnInterval: Math.max(pressure.spawnIntervalMin, pressure.spawnIntervalStart - step * pressure.spawnIntervalStep),
-    eventGap: Math.max(pressure.eventGapMin, pressure.eventGapStart - step * 0.018),
-    rebuildBudget: Math.min(tuning.budget.cap, tuning.budget.base + step * tuning.budget.perPhase),
   };
 }
 
