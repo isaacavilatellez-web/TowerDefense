@@ -22,6 +22,7 @@ export class UIManager {
     this.canvas = null;
     this.ctx = null;
     this.resizeHandler = null;
+    this.resizeObserver = null;
     this.renderFrameLogged = false;
     this.upgradeRenderKey = '';
     this.upgradeSelectionLocked = false;
@@ -323,21 +324,32 @@ export class UIManager {
   configureCanvas() {
     if (!this.canvas || !this.ctx) return;
     const { width, height } = GAME_CONFIG.map;
-    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || width;
-    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || height;
+    const field = this.app.querySelector('.game-field');
+    if (!field) return;
+    const fieldRect = field.getBoundingClientRect();
+    const availableWidth = field.clientWidth || fieldRect.width;
+    const availableHeight = field.clientHeight || fieldRect.height;
+    if (!availableWidth || !availableHeight) return;
     const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
+    // El juego usa coordenadas lógicas fijas. El canvas visible se ajusta al
+    // rectángulo disponible con una única escala para ambos ejes; el espacio
+    // sobrante queda como margen del campo y no se usa para estirar el mapa.
+    const uniformScale = Math.min(availableWidth / width, availableHeight / height);
+    const cssWidth = Math.max(1, width * uniformScale);
+    const cssHeight = Math.max(1, height * uniformScale);
+    this.canvas.width = Math.max(1, Math.round(cssWidth * dpr));
+    this.canvas.height = Math.max(1, Math.round(cssHeight * dpr));
+    this.canvas.style.setProperty('width', `${cssWidth}px`, 'important');
+    this.canvas.style.setProperty('height', `${cssHeight}px`, 'important');
+    this.canvas.style.setProperty('max-width', '100%', 'important');
+    this.canvas.style.setProperty('max-height', '100%', 'important');
+    // setTransform sustituye la transformación anterior: redimensionar o
+    // volver a entrar en una partida nunca acumula escalados.
+    this.ctx.setTransform(dpr * uniformScale, 0, 0, dpr * uniformScale, 0, 0);
+    this.ctx.imageSmoothingEnabled = true;
     const rect = this.canvas.getBoundingClientRect();
-    const cssWidth = rect.width || Math.min(width, Math.max(320, viewportWidth - 32));
-    const cssHeight = cssWidth * height / width;
-    this.canvas.width = Math.max(1, Math.round(width * dpr));
-    this.canvas.height = Math.max(1, Math.round(height * dpr));
-    this.canvas.style.width = '100%';
-    this.canvas.style.height = '100%';
-    this.canvas.style.maxWidth = '100%';
-    this.canvas.style.maxHeight = '100%';
-    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    this.canvasMetrics = { cssWidth: rect.width || cssWidth, cssHeight: rect.height || cssHeight, dpr, viewportWidth, viewportHeight };
-    console.log('canvas configured', { width: this.canvas.width, height: this.canvas.height, cssWidth, cssHeight, dpr, viewportWidth, viewportHeight });
+    this.canvasMetrics = { cssWidth: rect.width, cssHeight: rect.height, dpr, scale: uniformScale, logicalWidth: width, logicalHeight: height };
+    console.log('canvas configured', { width: this.canvas.width, height: this.canvas.height, cssWidth: rect.width, cssHeight: rect.height, dpr, scale: uniformScale });
   }
 
   verifyBattleMount() {
@@ -367,10 +379,12 @@ export class UIManager {
 
   removeBattleResizeHandler() {
     if (this.resizeHandler) window.removeEventListener('resize', this.resizeHandler);
+    if (this.resizeObserver) this.resizeObserver.disconnect();
     document.removeEventListener('pointermove', this.onPointerMove);
     document.removeEventListener('pointerup', this.onPointerUp);
     document.removeEventListener('pointercancel', this.onPointerCancel);
     this.resizeHandler = null;
+    this.resizeObserver = null;
   }
 
   showBattleError(title, message) {
@@ -386,6 +400,11 @@ export class UIManager {
     this.removeBattleResizeHandler();
     this.resizeHandler = () => this.configureCanvas();
     window.addEventListener('resize', this.resizeHandler);
+    const field = this.app.querySelector('.game-field');
+    if (field && 'ResizeObserver' in window) {
+      this.resizeObserver = new ResizeObserver(() => this.configureCanvas());
+      this.resizeObserver.observe(field);
+    }
     this.app.querySelector('.back-map').addEventListener('click', () => this.game.returnToMap());
     const clickerButton = this.app.querySelector('#clicker-button');
     clickerButton.addEventListener('pointerdown', (event) => {
@@ -429,7 +448,9 @@ export class UIManager {
 
   canvasPoint(event) {
     const rect = this.canvas.getBoundingClientRect();
-    return { x: (event.clientX - rect.left) * GAME_CONFIG.map.width / rect.width, y: (event.clientY - rect.top) * GAME_CONFIG.map.height / rect.height };
+    const logicalWidth = this.canvasMetrics?.logicalWidth || GAME_CONFIG.map.width;
+    const logicalHeight = this.canvasMetrics?.logicalHeight || GAME_CONFIG.map.height;
+    return { x: (event.clientX - rect.left) * logicalWidth / rect.width, y: (event.clientY - rect.top) * logicalHeight / rect.height };
   }
 
   pointInsideCanvas(event) {
@@ -694,9 +715,13 @@ export class UIManager {
   drawSprite(ctx, key, x, y, width, height = width, alpha = 1) {
     const image = this.sprites[key];
     if (!image?.naturalWidth) return false;
+    const imageRatio = image.naturalWidth / image.naturalHeight;
+    const boxRatio = width / height;
+    const drawWidth = imageRatio > boxRatio ? width : height * imageRatio;
+    const drawHeight = imageRatio > boxRatio ? width / imageRatio : height;
     ctx.save();
     ctx.globalAlpha *= alpha;
-    ctx.drawImage(image, x - width / 2, y - height / 2, width, height);
+    ctx.drawImage(image, x - drawWidth / 2, y - drawHeight / 2, drawWidth, drawHeight);
     ctx.restore();
     return true;
   }
