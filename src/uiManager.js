@@ -339,7 +339,19 @@ export class UIManager {
     this.resizeHandler = () => this.configureCanvas();
     window.addEventListener('resize', this.resizeHandler);
     this.app.querySelector('.back-map').addEventListener('click', () => this.game.returnToMap());
-    this.app.querySelector('#clicker-button').addEventListener('click', () => this.game.clicker.press());
+    const clickerButton = this.app.querySelector('#clicker-button');
+    clickerButton.addEventListener('pointerdown', (event) => {
+      // Activar en pointerdown elimina el retardo de click en móvil. La
+      // política touch-action del botón evita que una ráfaga se convierta en
+      // doble toque/zoom del navegador.
+      if (!event.isPrimary || (event.button !== undefined && event.button !== 0)) return;
+      event.preventDefault();
+      this.game.clicker.press();
+    });
+    // Mantener la activación por teclado sin duplicar la activación táctil.
+    clickerButton.addEventListener('click', (event) => {
+      if (event.detail === 0) this.game.clicker.press();
+    });
     this.app.querySelector('#upgrade-clicker').addEventListener('click', () => this.game.clicker.upgrade());
     this.app.querySelectorAll('.tower-card').forEach((button) => button.addEventListener('pointerdown', (event) => {
       event.preventDefault();
