@@ -1111,3 +1111,82 @@ body { overflow:hidden; }
   .battle-screen .clicker-button { min-height:58px; }
   .battle-screen .upgrade-clicker { min-height:40px; }
 }
+
+/*
+ * El panel móvil se dimensiona por contenido. El campo es el único elemento
+ * flexible de la composición; el arsenal no reserva una altura artificial.
+ */
+@media (max-width:900px) {
+  .battle-screen .battle-side {
+    flex:0 0 auto;
+    height:auto;
+    min-height:0;
+    padding:7px 7px max(7px, env(safe-area-inset-bottom));
+    grid-template-rows:auto;
+    align-items:start;
+  }
+
+  .battle-screen .tower-shop {
+    height:auto;
+    min-height:0;
+    align-self:start;
+  }
+
+  .battle-screen .section-label {
+    height:auto;
+    min-height:0;
+    line-height:1;
+    margin:0 0 4px;
+  }
+
+  .battle-screen .tower-cards {
+    height:auto;
+    min-height:0;
+    grid-template-rows:repeat(2, auto);
+    align-content:start;
+    gap:4px;
+  }
+
+  .battle-screen .tower-card {
+    height:auto;
+    min-height:0;
+    align-content:start;
+  }
+
+  .battle-screen .clicker-zone {
+    height:auto;
+    min-height:0;
+    align-self:start;
+    gap:4px;
+  }
+
+  .battle-screen .clicker-currency {
+    min-height:0;
+    padding:4px 7px;
+  }
+
+  .battle-screen .clicker-card {
+    flex:0 0 auto;
+    height:auto;
+    min-height:0;
+    padding:0;
+    justify-content:flex-start;
+    gap:3px;
+  }
+
+  .battle-screen .clicker-button {
+    height:auto;
+    min-height:0;
+    padding:6px 4px;
+  }
+
+  .battle-screen .upgrade-clicker {
+    min-height:0;
+    height:auto;
+    padding:5px 7px;
+  }
+}
+
+@media (max-width:360px) {
+  .battle-screen .clicker-button { padding-block:5px; }
+}
