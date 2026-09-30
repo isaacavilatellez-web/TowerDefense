@@ -1121,7 +1121,7 @@ body { overflow:hidden; }
     flex:0 0 auto;
     height:auto;
     min-height:0;
-    padding:7px;
+    padding:7px 7px 19px;
     grid-template-rows:auto;
     align-items:start;
   }
