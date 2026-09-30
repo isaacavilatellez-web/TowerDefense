@@ -88,6 +88,13 @@ export class GameManager {
     try {
       if (savedRun) {
         this.run = this.restoreInfiniteRun(savedRun);
+        // Una fase completada y guardada deja el intento listo para empezar
+        // la siguiente. No volvemos a mostrar el resultado ni repetimos la
+        // recompensa al continuar desde el menú.
+        if (this.run.infinite.phaseTransition) {
+          this.run.result = 'infinite-phase-complete';
+          this.nextInfinitePhase();
+        }
       } else {
         const phase = Math.max(1, this.save.infinite?.currentPhase || 1);
         const attempt = Math.max(0, this.save.infinite?.attempt || 0) + 1;
@@ -374,6 +381,11 @@ export class GameManager {
     run.infinite.lastReward = this.claimInfiniteReward(completed);
     run.infinite.damage = 0;
     run.infinite.activeThreat = 0;
+    run.drag = null;
+    run.placingType = null;
+    run.placementPreview = null;
+    run.mergeTargetId = null;
+    run.mergeableTowerIds = new Set();
     run.baseHp = run.baseMaxHp;
     run.enemies = [];
     run.projectiles = [];
@@ -390,7 +402,7 @@ export class GameManager {
 
   nextInfinitePhase() {
     const run = this.run;
-    if (!run?.infinite?.phaseTransition) return false;
+    if (!run?.infinite?.phaseTransition || run.result !== 'infinite-phase-complete') return false;
     const phase = run.infinite.nextPhase || this.save.infinite.currentPhase || 1;
     this.infinite.beginPhase(run, phase);
     run.difficulty = run.infinite.difficulty;

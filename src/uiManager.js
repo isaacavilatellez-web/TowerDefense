@@ -26,6 +26,8 @@ export class UIManager {
     this.upgradeRenderKey = '';
     this.upgradeSelectionLocked = false;
     this.selectedPanelKey = '';
+    this.resultActionLocked = false;
+    this.resultRenderKey = '';
     this.sprites = {};
     this.spritePaths = {
       ground: groundSprite,
@@ -74,15 +76,11 @@ export class UIManager {
           <section class="map-heading"><div><span class="eyebrow">RUTA DE SUPERVIVENCIA</span><h2>Conquista el mundo</h2><p>Avanza por el camino, supera cada defensa y desbloquea el siguiente sector.</p></div><div class="map-stat"><span class="pulse-dot"></span><span>SEÑAL ACTIVA</span></div></section>
           <section class="world-track" id="world-track"></section>
         </section>
-        <section class="map-action-dock" aria-label="Modos de juego">
-          <button class="primary-button map-level-action">JUGAR NIVEL <span>→</span></button>
-          <button class="infinite-menu-button map-infinite-action"><span class="infinite-symbol" aria-hidden="true">∞</span><span><b>Modo infinito</b><small>Fase actual: 1</small></span><i>→</i></button>
-        </section>
+        <button class="map-infinite-access" aria-label="Abrir modo infinito"><span class="infinite-symbol" aria-hidden="true">∞</span><small>Infinito</small></button>
         ${this.bottomNav('map')}
       </main>`;
     this.renderMapNodes();
-    this.app.querySelector('.map-level-action').addEventListener('click', () => this.game.startLevel(this.selectedLevel));
-    this.app.querySelector('.map-infinite-action').addEventListener('click', () => this.showInfiniteHub());
+    this.app.querySelector('.map-infinite-access').addEventListener('click', () => this.showInfiniteHub());
     this.app.querySelector('.map-screen').addEventListener('pointerdown', (event) => {
       if (!event.target.closest('.level-node, .level-selection-card')) this.closeLevelCard();
     });
@@ -90,9 +88,7 @@ export class UIManager {
   }
 
   updateMapActions() {
-    const levelButton = this.app.querySelector('.map-level-action');
-    if (levelButton) levelButton.innerHTML = `JUGAR NIVEL ${String(this.selectedLevel).padStart(2, '0')} <span>→</span>`;
-    const infiniteButton = this.app.querySelector('.map-infinite-action');
+    const infiniteButton = this.app.querySelector('.map-infinite-access');
     if (!infiniteButton) return;
     const unlocked = this.game.infiniteUnlocked();
     const phase = this.game.save.infinite?.currentPhase || 1;
@@ -100,7 +96,10 @@ export class UIManager {
     infiniteButton.disabled = !unlocked;
     infiniteButton.classList.toggle('locked', !unlocked);
     const label = infiniteButton.querySelector('small');
-    if (label) label.textContent = unlocked ? `${hasRun ? 'Continuar · ' : ''}Fase actual: ${phase}` : 'Completa el primer nivel';
+    if (label) label.textContent = unlocked ? 'Infinito' : 'Bloqueado';
+    infiniteButton.setAttribute('aria-label', unlocked
+      ? `${hasRun ? 'Continuar en ' : 'Abrir '}modo infinito, fase ${phase}`
+      : 'Modo infinito bloqueado: completa el primer nivel');
   }
 
   renderMapNodes() {
@@ -322,6 +321,8 @@ export class UIManager {
     this.upgradeRenderKey = '';
     this.upgradeSelectionLocked = false;
     this.selectedPanelKey = '';
+    this.resultActionLocked = false;
+    this.resultRenderKey = '';
     const run = this.game.run;
     const infinite = Boolean(run.infinite);
     const currentClickValue = GAME_CONFIG.economy.clickValues[Math.min(GAME_CONFIG.economy.clickValues.length - 1, run.clickerLevel - 1)] || 1;
@@ -923,14 +924,47 @@ export class UIManager {
   renderResult() {
     const overlay = this.app.querySelector('#result-overlay');
     const run = this.game.run;
-    if (!overlay || !run?.result) { if (overlay) { overlay.classList.remove('visible'); overlay.innerHTML = ''; } return; }
+    if (!overlay || !run?.result) {
+      if (overlay) {
+        overlay.classList.remove('visible');
+        overlay.innerHTML = '';
+        overlay.dataset.resultKey = '';
+      }
+      this.resultRenderKey = '';
+      this.resultActionLocked = false;
+      return;
+    }
+    const resultKey = `${run.result}:${run.infinite?.completedPhase || ''}:${run.infinite?.defeatPhase || ''}:${run.infinite?.nextPhase || ''}`;
+    if (overlay.dataset.resultKey === resultKey) {
+      overlay.classList.add('visible');
+      return;
+    }
+    this.resultRenderKey = resultKey;
+    this.resultActionLocked = false;
+    overlay.dataset.resultKey = resultKey;
     if (run.result === 'infinite-phase-complete') {
       const phase = run.infinite.completedPhase;
       const reward = run.infinite.lastReward || {};
       overlay.innerHTML = `<div class="result-card victory infinite-result"><span class="eyebrow">PROGRESO GUARDADO</span><h2>FASE ${phase} SUPERADA</h2><p>Has completado el daño requerido. El refugio se ha restaurado y el campo está listo para continuar.</p><div class="result-reward">+${reward.scrap || 0} ◆ CHAPA${reward.technology ? ` · +${reward.technology} ✦ TECNO` : ''}${reward.crystals ? ` · +${reward.crystals} ◆ NÚCLEO` : ''}</div><div class="result-actions"><button class="primary-button infinite-next">SIGUIENTE FASE <span>→</span></button><button class="soft-button infinite-save-exit">GUARDAR Y SALIR</button></div></div>`;
       overlay.classList.add('visible');
-      overlay.querySelector('.infinite-next').addEventListener('click', () => this.game.nextInfinitePhase());
-      overlay.querySelector('.infinite-save-exit').addEventListener('click', () => this.game.saveAndExitInfinite());
+      const runResultAction = (button, action) => {
+        if (this.resultActionLocked || !this.game.run || this.game.run.result !== 'infinite-phase-complete') return;
+        this.resultActionLocked = true;
+        overlay.querySelectorAll('.result-actions button').forEach((control) => { control.disabled = true; });
+        if (action() === false) {
+          this.resultActionLocked = false;
+          overlay.querySelectorAll('.result-actions button').forEach((control) => { control.disabled = false; });
+          return;
+        }
+        overlay.classList.remove('visible');
+        overlay.innerHTML = '';
+        overlay.dataset.resultKey = '';
+        button.blur();
+      };
+      const nextButton = overlay.querySelector('.infinite-next');
+      const saveExitButton = overlay.querySelector('.infinite-save-exit');
+      nextButton.addEventListener('click', () => runResultAction(nextButton, () => this.game.nextInfinitePhase()));
+      saveExitButton.addEventListener('click', () => runResultAction(saveExitButton, () => this.game.saveAndExitInfinite()));
       return;
     }
     if (run.result === 'infinite-defeat') {
