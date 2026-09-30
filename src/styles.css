@@ -924,3 +924,190 @@ body { overflow:hidden; }
 .level-selection-card::before { top:50%; width:0; height:0; border:8px solid transparent; background:transparent; transform:translateY(-50%); }
 .level-selection-card[data-side="right"]::before { left:-16px; border-right-color:#fff4b8; border-left:0; }
 .level-selection-card[data-side="left"]::before { right:-16px; border-left-color:#fff4b8; border-right:0; transform:translateY(-50%); }
+
+/* Partida móvil: el campo recibe todo el alto que no necesitan el HUD y los controles. */
+.battle-screen .hud-icon { display:inline-grid; place-items:center; width:1.05em; height:1.05em; margin-right:3px; font-style:normal; line-height:1; }
+.battle-screen .coin-icon { color:#b18a29; font-size:.8em; }
+.battle-screen .enemy-icon { color:#5f7869; font-size:.72em; }
+
+@media (max-width:900px) {
+  .battle-screen {
+    width:100vw;
+    height:100dvh;
+    max-width:none;
+    max-height:none;
+    border-radius:0;
+  }
+
+  .battle-screen .battle-header {
+    flex:0 0 calc(clamp(52px, 7dvh, 64px) + env(safe-area-inset-top));
+    height:calc(clamp(52px, 7dvh, 64px) + env(safe-area-inset-top));
+    min-height:0;
+    padding:env(safe-area-inset-top) 7px 5px;
+    gap:6px;
+    border-bottom:3px solid #879294;
+    border-radius:0 0 16px 16px;
+  }
+
+  .battle-screen .icon-button {
+    width:40px;
+    height:40px;
+    flex-basis:40px;
+    font-size:1.75rem;
+  }
+
+  .battle-screen .battle-title { flex:0 0 auto; min-width:0; }
+  .battle-screen .battle-title h1 { font-size:clamp(1rem, 4.5vw, 1.35rem); }
+  .battle-screen .battle-progress { min-width:0; flex:1 1 auto; }
+  .battle-screen .battle-progress-top { min-height:13px; font-size:.5rem; }
+  .battle-screen .battle-progress .progress-track { height:10px; margin-top:1px; border-width:2px; }
+  .battle-screen .battle-progress .phase-value,
+  .battle-screen .battle-progress .next-boss { margin-top:2px; font-size:clamp(.4rem, 1.6vw, .52rem); }
+  .battle-screen .battle-progress .progress-value { font-size:clamp(.68rem, 2.8vw, .88rem); }
+
+  .battle-screen .battle-resources {
+    display:flex;
+    flex:0 0 auto;
+    flex-direction:row;
+    gap:3px;
+    font-size:clamp(.52rem, 1.9vw, .68rem);
+  }
+  .battle-screen .battle-resources>span {
+    min-width:40px;
+    padding:4px 5px;
+    border-radius:8px;
+  }
+  .battle-screen .battle-resources .hud-icon { margin-right:1px; }
+
+  .battle-screen .battle-layout {
+    flex:1 1 auto;
+    width:100%;
+    min-height:0;
+    gap:0;
+    padding:0;
+    overflow:hidden;
+  }
+
+  .battle-screen .game-field {
+    flex:1 1 auto;
+    width:100%;
+    min-height:0;
+    height:auto;
+    border:0;
+    border-radius:0;
+    box-shadow:none;
+    background:#79bd4e;
+    display:block;
+  }
+  .battle-screen #battle-canvas {
+    width:100% !important;
+    height:100% !important;
+    max-width:none;
+    max-height:none;
+    aspect-ratio:auto;
+    object-fit:fill;
+  }
+
+  .battle-screen .battle-side {
+    flex:0 0 clamp(190px, 24.5dvh, 226px);
+    width:100%;
+    min-height:0;
+    margin:0;
+    padding:7px 7px max(7px, env(safe-area-inset-bottom));
+    border:3px solid #879294;
+    border-radius:20px 20px 0 0;
+    box-shadow:0 -4px 0 rgba(87,100,102,.26);
+    display:grid;
+    grid-template-columns:minmax(0,1.52fr) minmax(112px,.88fr);
+    grid-template-rows:1fr;
+    gap:7px;
+    overflow:visible;
+  }
+  .battle-screen .tower-shop {
+    grid-column:1;
+    grid-row:1;
+    min-width:0;
+    min-height:0;
+    height:100%;
+    padding:0 7px 0 0;
+    border-right:2px solid #879294;
+  }
+  .battle-screen .section-label { height:18px; margin:0 0 4px; }
+  .battle-screen .section-label span { font-size:clamp(.85rem, 3vw, 1.05rem); }
+  .battle-screen .section-label small { font-size:clamp(.38rem, 1.4vw, .5rem); }
+  .battle-screen .tower-cards {
+    height:calc(100% - 22px);
+    min-height:0;
+    grid-template-columns:repeat(3, minmax(0,1fr));
+    grid-template-rows:repeat(2, minmax(0,1fr));
+    gap:5px;
+  }
+  .battle-screen .tower-card {
+    min-height:0;
+    height:100%;
+    padding:3px 2px;
+    border-width:2px;
+    border-radius:10px;
+    gap:2px;
+  }
+  .battle-screen .tower-card .tower-art { height:clamp(29px, 5dvh, 42px); border-radius:7px; }
+  .battle-screen .tower-card strong { font-size:clamp(.46rem, 1.9vw, .6rem); line-height:1; }
+  .battle-screen .tower-card small { display:none; }
+  .battle-screen .tower-card em { font-size:clamp(.4rem, 1.6vw, .52rem); line-height:1; }
+
+  .battle-screen .clicker-zone {
+    grid-column:2;
+    grid-row:1;
+    min-width:0;
+    min-height:0;
+    gap:4px;
+  }
+  .battle-screen .clicker-currency {
+    align-self:stretch;
+    min-height:29px;
+    padding:4px 7px;
+    border-width:2px;
+    font-size:clamp(.72rem, 2.8vw, .92rem);
+    text-align:center;
+  }
+  .battle-screen .clicker-card { min-height:0; padding:1px 0; gap:3px; }
+  .battle-screen .clicker-card .eyebrow { font-size:clamp(.38rem, 1.5vw, .52rem); }
+  .battle-screen .clicker-card p { font-size:clamp(.4rem, 1.6vw, .52rem); }
+  .battle-screen .clicker-button {
+    min-height:clamp(64px, 9.5dvh, 82px);
+    border-width:3px;
+    border-radius:15px;
+  }
+  .battle-screen .clicker-button strong { font-size:clamp(2rem, 8vw, 2.7rem); }
+  .battle-screen .clicker-button small { font-size:clamp(.42rem, 1.7vw, .56rem); }
+  .battle-screen .upgrade-clicker {
+    min-height:44px;
+    padding:4px 6px;
+    border-width:2px;
+    border-radius:11px;
+    font-size:clamp(.42rem, 1.7vw, .55rem);
+  }
+
+  /* El panel contextual flota sobre el mapa sin crear altura reservada debajo. */
+  .battle-screen .tower-panel { max-height:min(150px, 22dvh); }
+}
+
+@media (max-width:360px) {
+  .battle-screen .battle-header { gap:4px; padding-inline:5px; }
+  .battle-screen .battle-resources>span { min-width:36px; padding-inline:3px; }
+  .battle-screen .battle-side { grid-template-columns:minmax(0,1.48fr) minmax(105px,.86fr); gap:5px; padding-inline:5px; }
+  .battle-screen .tower-shop { padding-right:5px; }
+  .battle-screen .tower-card .tower-art { height:29px; }
+  .battle-screen .tower-card strong { font-size:.44rem; }
+  .battle-screen .tower-card em { font-size:.38rem; }
+  .battle-screen .clicker-button { min-height:60px; }
+  .battle-screen .clicker-button strong { font-size:2rem; }
+}
+
+@media (max-height:640px) and (max-width:900px) {
+  .battle-screen .battle-header { flex-basis:calc(50px + env(safe-area-inset-top)); height:calc(50px + env(safe-area-inset-top)); }
+  .battle-screen .battle-side { flex-basis:190px; }
+  .battle-screen .tower-card .tower-art { height:27px; }
+  .battle-screen .clicker-button { min-height:58px; }
+  .battle-screen .upgrade-clicker { min-height:40px; }
+}
