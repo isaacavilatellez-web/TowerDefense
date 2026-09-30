@@ -57,9 +57,9 @@ export const GAME_CONFIG = {
     reconstructionCoinsPerPhase: 8,
     reconstructionCoinsCap: 160,
     baseHp: 100,
-    targetBase: 360,
-    targetGrowth: 1.22,
-    targetLinear: 95,
+    targetDamageBase: 2400,
+    targetDamageGrowth: 1.15,
+    targetDamageRounding: 10,
     hpGrowth: 1.075,
     speedGrowth: 1.012,
     spawnIntervalStart: 2.9,
@@ -124,12 +124,20 @@ export function getLevelDifficulty(level) {
 const finitePositive = (value, fallback) => Number.isFinite(value) && value > 0 ? value : fallback;
 const clampFinite = (value, min, max) => Math.min(max, Math.max(min, Number.isFinite(value) ? value : min));
 
+export function calcularObjetivoDanio(fase) {
+  const safePhase = Math.max(1, Math.floor(Number(fase) || 1));
+  const infinite = GAME_CONFIG.infinite;
+  const base = finitePositive(infinite.targetDamageBase, 2400);
+  const growth = finitePositive(infinite.targetDamageGrowth, 1.15);
+  const rounding = finitePositive(infinite.targetDamageRounding, 10);
+  return Math.round((base * Math.pow(growth, safePhase - 1)) / rounding) * rounding;
+}
+
 export function getInfinitePhaseConfig(phase) {
   const safePhase = Math.max(1, Math.floor(Number(phase) || 1));
   const step = safePhase - 1;
   const infinite = GAME_CONFIG.infinite;
-  const target = Math.max(1, Math.min(Number.MAX_SAFE_INTEGER / 4,
-    Math.round(finitePositive(infinite.targetBase, 360) * Math.pow(finitePositive(infinite.targetGrowth, 1.22), Math.min(step, 180)) + step * finitePositive(infinite.targetLinear, 95))));
+  const target = Math.max(1, Math.min(Number.MAX_SAFE_INTEGER / 4, calcularObjetivoDanio(safePhase)));
   const hpMultiplier = Math.min(1e6, Math.pow(finitePositive(infinite.hpGrowth, 1.075), Math.min(step, 180)));
   const speedMultiplier = Math.min(3.5, Math.pow(finitePositive(infinite.speedGrowth, 1.012), Math.min(step, 180)));
   const spawnInterval = clampFinite(finitePositive(infinite.spawnIntervalStart, 2.9) - step * finitePositive(infinite.spawnIntervalStep, .045), finitePositive(infinite.spawnIntervalMin, .62), 20);

@@ -97,26 +97,26 @@ export class GameManager {
 
   createInfiniteRun(phase, options = {}) {
     const config = getInfinitePhaseConfig(phase);
-    const previous = options.previous;
-    const map = options.map || previous?.map || MapGenerator.generate(1, this.save.infinite.seed);
-    const director = options.director || this.infinite.createState(phase, this.save.infinite.seed);
+    const currentPhase = config.phase;
+    const map = options.map || options.previous?.map || MapGenerator.generate(1, this.save.infinite.seed);
+    const director = options.director || this.infinite.createState(currentPhase, this.save.infinite.seed);
     return {
-      mode: 'infinite', level: phase, infinitePhase: phase,
-      meta: { level: phase, name: `Fase ${phase}` }, map,
+      mode: 'infinite', level: currentPhase, infinitePhase: currentPhase,
+      meta: { level: currentPhase, name: `Fase ${currentPhase}` }, map,
       developerRun: Boolean(this.save.settings?.developer),
       baseHp: config ? GAME_CONFIG.infinite.baseHp : GAME_CONFIG.levels.startingBaseHp,
       baseMaxHp: GAME_CONFIG.infinite.baseHp,
-      coins: options.coins ?? previous?.coins ?? GAME_CONFIG.infinite.startingCoins,
-      clickerLevel: options.clickerLevel ?? previous?.clickerLevel ?? 1,
-      autoCoins: 0, autoCoinTimer: 0, clicks: options.clicks ?? previous?.clicks ?? 0,
-      towers: options.towers ?? previous?.towers ?? [], enemies: options.enemies ?? [], projectiles: options.projectiles ?? [],
-      nextEnemyId: options.nextEnemyId ?? previous?.nextEnemyId ?? 1,
-      difficulty: null, wavePlan: [], phaseIndex: 0, phase: null, phaseSpawned: 0, phaseKills: 0, phaseLeaks: 0,
+      coins: options.coins ?? config.reconstructionCoins,
+      clickerLevel: options.clickerLevel ?? 1,
+      autoCoins: 0, autoCoinTimer: 0, clicks: options.clicks ?? 0,
+      towers: options.towers ?? [], enemies: options.enemies ?? [], projectiles: options.projectiles ?? [],
+      nextEnemyId: options.nextEnemyId ?? 1,
+      difficulty: config, wavePlan: [], phaseIndex: 0, phase: null, phaseSpawned: 0, phaseKills: 0, phaseLeaks: 0,
       phaseLabel: 'FASE EN CURSO', phaseTimer: 0, phaseCountdown: 0, waveNumber: 0, totalEnemies: 0, totalWaves: 0,
-      spawned: options.spawned ?? previous?.spawned ?? 0, ambientSpawned: 0, ambientSpawnedThisPhase: 0, ambientTimer: 0, spawnTimer: 0,
-      kills: options.kills ?? previous?.kills ?? 0, leaks: options.leaks ?? previous?.leaks ?? 0,
+      spawned: options.spawned ?? 0, ambientSpawned: 0, ambientSpawnedThisPhase: 0, ambientTimer: 0, spawnTimer: 0,
+      kills: options.kills ?? 0, leaks: options.leaks ?? 0,
       bossReadyTimer: 0, bossActive: false, miniBossActive: false, bossCurrencyEarned: 0, miniBosses: [],
-      upgradeOptions: [], pausedForUpgrade: false, buffs: options.buffs ?? previous?.buffs ?? {},
+      upgradeOptions: [], pausedForUpgrade: false, buffs: options.buffs ?? {},
       placingType: null, placingLevel: 1, selectedTowerId: null, mergeTargetId: null, mergeableTowerIds: new Set(), drag: null,
       mergeFx: null, placementPreview: null, ended: false, result: null,
       damageDone: options.damageDone ?? 0, damageTarget: config.targetDamage, infiniteDirector: director,
@@ -133,7 +133,7 @@ export class GameManager {
         this.run = this.restoreInfiniteRun(saved);
       } else {
         const config = getInfinitePhaseConfig(phase);
-        this.run = this.createInfiniteRun(phase, { coins: retry ? config.reconstructionCoins : GAME_CONFIG.infinite.startingCoins });
+        this.run = this.createInfiniteRun(phase, { coins: config.reconstructionCoins });
       }
       this.run.ended = false;
       this.run.result = null;
@@ -182,10 +182,11 @@ export class GameManager {
   }
 
   advanceInfinitePhase() {
-    if (!this.run || this.run.mode !== 'infinite' || this.run.result !== 'victory') return false;
+    if (!this.run || this.run.mode !== 'infinite' || this.run.result !== 'victory' || this.run.phaseTransitioned) return false;
     const nextPhase = this.run.infinitePhase + 1;
     const previous = this.run;
-    this.run = this.createInfiniteRun(nextPhase, { previous, enemies: [], projectiles: [], damageDone: 0, spawned: 0 });
+    previous.phaseTransitioned = true;
+    this.run = this.createInfiniteRun(nextPhase, { map: previous.map });
     this.save.infinite.currentPhase = nextPhase;
     this.save.infinite.activeRun = null;
     this.persistInfiniteRun();
