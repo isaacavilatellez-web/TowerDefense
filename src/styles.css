@@ -1190,3 +1190,38 @@ body { overflow:hidden; }
 @media (max-width:360px) {
   .battle-screen .clicker-button { padding-block:5px; }
 }
+
+/* Clicker reducido: el botón contiene únicamente su nombre y multiplicador. */
+.battle-screen .clicker-card {
+  flex:0 0 auto;
+  min-height:0;
+  padding:0;
+  justify-content:flex-start;
+}
+.battle-screen .clicker-button {
+  min-height:78px;
+  padding:6px 4px;
+  border-width:3px;
+  border-radius:15px;
+  gap:1px;
+  place-content:center;
+}
+.battle-screen .clicker-button .clicker-title {
+  display:block;
+  color:#775f22;
+  font-size:clamp(.62rem,2.2vw,.8rem);
+  font-weight:900;
+  line-height:1;
+  letter-spacing:.06em;
+}
+.battle-screen .clicker-button strong {
+  display:block;
+  font-size:clamp(1.55rem,5vw,2rem);
+  line-height:1;
+}
+.battle-screen .clicker-button small { display:none; }
+.battle-screen .clicker-zone { gap:4px; }
+
+@media (max-width:900px) {
+  .battle-screen .clicker-button { min-height:0; }
+}
