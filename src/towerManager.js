@@ -12,6 +12,8 @@ export class TowerManager {
     if (this.game.run.coins < cost) return false;
     this.game.run.placingType = type;
     this.game.run.placingLevel = level;
+    this.game.run.selectedTowerId = null;
+    this.game.run.mergeableTowerIds = new Set();
     this.game.run.placementPreview = null;
     this.game.run.mergeTargetId = null;
     this.game.run.drag = { mode: 'place', type, level, pointerId: null, moved: false, fromShop: true };
@@ -27,6 +29,7 @@ export class TowerManager {
     run.placementPreview = null;
     run.drag = null;
     run.mergeTargetId = null;
+    run.mergeableTowerIds = new Set();
     return true;
   }
 
@@ -43,6 +46,7 @@ export class TowerManager {
     run.placementPreview = null;
     run.drag = null;
     run.mergeTargetId = null;
+    run.mergeableTowerIds = new Set();
     run.selectedTowerId = tower.id;
     this.game.feedback('Defensa colocada', 'success');
     return true;
@@ -200,6 +204,7 @@ export class TowerManager {
     b.cooldown = 0;
     this.game.run.towers = towers.filter((item) => item.id !== a.id);
     this.game.run.selectedTowerId = b.id;
+    this.game.run.mergeableTowerIds = new Set();
     this.game.run.mergeFx = { x: destinationPosition.x, y: destinationPosition.y, from: sourcePosition, type: b.type, level: sourceLevel, resultId: b.id, until: performance.now() + 620, started: performance.now() };
     this.game.feedback(`FUSIÓN · NIVEL ${b.level}`, 'merge');
     return true;
@@ -221,6 +226,7 @@ export class TowerManager {
     run.placementPreview = null;
     run.drag = null;
     run.mergeTargetId = null;
+    run.mergeableTowerIds = new Set();
     run.selectedTowerId = target.id;
     run.mergeFx = { x: target.x, y: target.y, from: { x: target.x, y: target.y }, type: target.type, level: sourceLevel, resultId: target.id, until: performance.now() + 620, started: performance.now() };
     this.game.feedback(`FUSIÓN DIRECTA · NIVEL ${target.level}`, 'merge');

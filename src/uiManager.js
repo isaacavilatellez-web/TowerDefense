@@ -2,6 +2,16 @@ import { GAME_CONFIG, WORLDS } from './config.js';
 import { getTowerStats, towerCost } from './towerData.js';
 import { enemyPosition } from './enemyData.js';
 import { SaveSystem } from './saveSystem.js';
+import groundSprite from '../sprites/cesped.png';
+import treeSprite from '../sprites/arbol.png';
+import shrubSprite from '../sprites/arbusto.png';
+import rockSprite from '../sprites/roca.png';
+import gunnerSprite from '../sprites/amt_n1.png';
+import cannonSprite from '../sprites/cañ_n1.png';
+import flameSprite from '../sprites/flm_n1.png';
+import sniperSprite from '../sprites/hie_n1.png';
+import mortarSprite from '../sprites/mis_n1.png';
+import teslaSprite from '../sprites/tes_n1.png';
 
 export class UIManager {
   constructor() {
@@ -16,15 +26,38 @@ export class UIManager {
     this.upgradeRenderKey = '';
     this.upgradeSelectionLocked = false;
     this.selectedPanelKey = '';
+    this.sprites = {};
+    this.spritePaths = {
+      ground: groundSprite,
+      tree: treeSprite,
+      shrub: shrubSprite,
+      rock: rockSprite,
+      gunner: gunnerSprite,
+      cannon: cannonSprite,
+      flame: flameSprite,
+      sniper: sniperSprite,
+      mortar: mortarSprite,
+      tesla: teslaSprite,
+    };
   }
 
   mount(game) {
     this.game = game;
+    this.loadSprites();
     const maxLevel = game.levels.maxLevel();
     const savedMapLevel = Math.min(maxLevel, game.save.mapLevel || game.save.currentLevel || 1);
     const fallbackLevel = Math.min(maxLevel, game.save.currentLevel || 1);
     this.selectedLevel = game.levels.isUnlocked(savedMapLevel) ? savedMapLevel : fallbackLevel;
     this.showMap();
+  }
+
+  loadSprites() {
+    Object.entries(this.spritePaths).forEach(([key, src]) => {
+      const image = new Image();
+      image.decoding = 'async';
+      image.src = src;
+      this.sprites[key] = image;
+    });
   }
 
   showMap() {
@@ -237,7 +270,7 @@ export class UIManager {
     this.selectedPanelKey = '';
     const run = this.game.run;
     console.log('showBattle', { level: run?.level, mapReady: Boolean(run?.map) });
-    this.app.innerHTML = `<main class="app-shell battle-screen"><header class="battle-header"><button class="icon-button back-map">‹</button><div class="battle-title"><span class="eyebrow">MUNDO ${run.meta.world.id} · ${run.meta.world.name}</span><h1>NIVEL ${String(run.level).padStart(2, '0')} <span class="live-badge"><i></i>EN VIVO</span></h1></div><div class="battle-progress"><div class="battle-progress-top"><strong>NIVEL ${run.level}</strong><b class="progress-value">0%</b></div><div class="progress-track"><i class="wave-progress"></i><span class="progress-marker marker-10"></span><span class="progress-marker marker-20"></span><span class="progress-marker marker-30"></span><span class="progress-marker marker-40"></span><span class="progress-marker marker-50"></span><span class="progress-marker marker-60"></span><span class="progress-marker marker-70"></span><span class="progress-marker marker-80"></span><span class="progress-marker marker-90"></span></div><small class="phase-value">PREPARACIÓN</small><small class="next-boss">SIGUIENTE · MINIBOSS</small></div><div class="battle-resources"><span>❤️ <b class="base-value">${run.baseHp}%</b></span><span>🪙 <b class="coins-value">${run.coins}</b></span><span>🌊 <b class="wave-counter">0/${run.totalWaves}</b></span></div></header><section class="battle-layout"><div class="game-field"><canvas id="battle-canvas" width="540" height="640"></canvas><div class="boss-hud" id="boss-hud"><div><strong class="boss-name">THE TITAN</strong><span class="boss-health-label">100%</span></div><div class="boss-health-track"><i class="boss-progress"></i></div></div><div class="field-hint" id="field-hint">Mantén y arrastra hasta una zona verde</div><div class="boss-warning" id="boss-warning"><span>MINIBOSS</span><strong>THE TITAN</strong></div></div><aside class="battle-side"><div class="tower-shop"><div class="section-label"><span>DEFENSAS</span><small>ARRASTRA AL MAPA</small></div><div class="tower-cards">${Object.values(GAME_CONFIG.towers).map((tower) => `<button class="tower-card" data-tower="${tower.id}" title="Arrastra para colocar o fusionar" style="--rarity-color:${tower.rarityColor}"><span class="tower-art" style="--tower-color:${tower.color}">${this.towerArt(tower.id)}</span><span><strong>${tower.shortName}</strong><small>${tower.name} · NV.${this.game.towerLevel(tower.id)}</small></span><em>◆ ${tower.cost}</em></button>`).join('')}</div></div><div class="clicker-zone"><div class="clicker-currency">🪙 <b class="coins-value">${run.coins}</b></div><div class="clicker-card"><div><span class="eyebrow">GENERADOR MANUAL</span><p><span class="auto-value">+0</span> / s · combo <span class="combo-value">x0</span></p></div><button class="clicker-button" id="clicker-button"><strong>x<b class="click-value">1</b></strong><small>TOCAR</small></button></div><button class="upgrade-clicker" id="upgrade-clicker"><span>NIVEL <b class="clicker-level">1</b></span><strong>MEJORAR · ◆ <b class="clicker-cost">65</b></strong></button></div><div class="tower-panel" id="tower-panel"></div></aside></section><div class="shop-drag-preview" id="shop-drag-preview" aria-hidden="true"></div><div class="feedback" id="feedback"></div><div class="upgrade-overlay" id="upgrade-overlay"></div><div class="result-overlay" id="result-overlay"></div></main>`;
+    this.app.innerHTML = `<main class="app-shell battle-screen"><header class="battle-header"><button class="icon-button back-map">‹</button><div class="battle-title"><h1>NIVEL ${String(run.level).padStart(2, '0')}</h1></div><div class="battle-progress"><div class="battle-progress-top"><span class="phase-label">OLEADA</span><b class="progress-value">0%</b></div><div class="progress-track"><i class="wave-progress"></i><span class="progress-marker marker-10"></span><span class="progress-marker marker-20"></span><span class="progress-marker marker-30"></span><span class="progress-marker marker-40"></span><span class="progress-marker marker-50"></span><span class="progress-marker marker-60"></span><span class="progress-marker marker-70"></span><span class="progress-marker marker-80"></span><span class="progress-marker marker-90"></span></div><small class="phase-value">PREPARACIÓN</small><small class="next-boss">SIGUIENTE · MINIBOSS</small></div><div class="battle-resources"><span>🪙 <b class="coins-value">${run.coins}</b></span><span>🌊 <b class="wave-counter">0/${run.totalWaves}</b></span></div></header><section class="battle-layout"><div class="game-field"><canvas id="battle-canvas" width="540" height="640"></canvas><div class="boss-hud" id="boss-hud"><div><strong class="boss-name">THE TITAN</strong><span class="boss-health-label">100%</span></div><div class="boss-health-track"><i class="boss-progress"></i></div></div><div class="field-hint" id="field-hint">Mantén y arrastra hasta una zona verde</div><div class="boss-warning" id="boss-warning"><span>MINIBOSS</span><strong>THE TITAN</strong></div></div><aside class="battle-side"><div class="tower-shop"><div class="section-label"><span>DEFENSAS</span><small>ARRASTRA AL MAPA</small></div><div class="tower-cards">${Object.values(GAME_CONFIG.towers).map((tower) => `<button class="tower-card" data-tower="${tower.id}" title="Arrastra para colocar o fusionar" style="--rarity-color:${tower.rarityColor}"><span class="tower-art" style="--tower-color:${tower.color}">${this.towerArt(tower.id)}</span><span><strong>${tower.shortName}</strong><small>${tower.name} · NV.${this.game.towerLevel(tower.id)}</small></span><em>◆ ${tower.cost}</em></button>`).join('')}</div></div><div class="clicker-zone"><div class="clicker-currency">🪙 <b class="coins-value">${run.coins}</b></div><div class="clicker-card"><div><span class="eyebrow">GENERADOR MANUAL</span><p><span class="auto-value">+0</span> / s · combo <span class="combo-value">x0</span></p></div><button class="clicker-button" id="clicker-button"><strong>x<b class="click-value">1</b></strong><small>TOCAR</small></button></div><button class="upgrade-clicker" id="upgrade-clicker"><span>NIVEL <b class="clicker-level">1</b></span><strong>MEJORAR · ◆ <b class="clicker-cost">65</b></strong></button></div><div class="tower-panel" id="tower-panel"></div></aside></section><div class="shop-drag-preview" id="shop-drag-preview" aria-hidden="true"></div><div class="feedback" id="feedback"></div><div class="upgrade-overlay" id="upgrade-overlay"></div><div class="result-overlay" id="result-overlay"></div></main>`;
     const clickerDescription = this.app.querySelector('.clicker-card p');
     if (clickerDescription) clickerDescription.innerHTML = '<span class="click-value">1</span> monedas por toque';
     const clickerLabel = this.app.querySelector('.clicker-button strong');
@@ -250,10 +283,6 @@ export class UIManager {
       const price = card.querySelector('em');
       if (tower && price) price.textContent = `◆ ${cost}`;
     });
-    this.app.querySelector('.battle-title .eyebrow')?.remove();
-    this.app.querySelector('.battle-title .live-badge')?.remove();
-    this.app.querySelector('.battle-progress-top strong')?.remove();
-    this.app.querySelector('.battle-resources')?.remove();
     this.canvas = this.app.querySelector('#battle-canvas');
     this.ctx = this.canvas?.getContext('2d') || null;
     if (!this.canvas || !this.ctx) {
@@ -321,7 +350,7 @@ export class UIManager {
     if (this.resizeHandler) window.removeEventListener('resize', this.resizeHandler);
     document.removeEventListener('pointermove', this.onPointerMove);
     document.removeEventListener('pointerup', this.onPointerUp);
-    document.removeEventListener('pointercancel', this.onPointerUp);
+    document.removeEventListener('pointercancel', this.onPointerCancel);
     this.resizeHandler = null;
   }
 
@@ -370,10 +399,13 @@ export class UIManager {
       drag.lastValidPoint = null;
       this.updateShopDragPreview(event);
     }));
+    this.app.querySelector('.battle-side').addEventListener('pointerdown', (event) => {
+      if (!event.target.closest('.tower-panel')) this.game.towers.select(null);
+    });
     this.canvas.addEventListener('pointerdown', (event) => this.onCanvasPointerDown(event));
     document.addEventListener('pointermove', this.onPointerMove);
     document.addEventListener('pointerup', this.onPointerUp);
-    document.addEventListener('pointercancel', this.onPointerUp);
+    document.addEventListener('pointercancel', this.onPointerCancel);
   }
 
   canvasPoint(event) {
@@ -387,15 +419,8 @@ export class UIManager {
   }
 
   towerArt(type) {
-    const art = {
-      gunner: '<rect x="39" y="57" width="22" height="25" rx="5" fill="#514f42"/><rect x="46" y="30" width="8" height="32" rx="3" fill="#827b60"/><rect x="52" y="27" width="32" height="7" rx="3" fill="#3c3b35"/><circle cx="48" cy="80" r="8" fill="#9a6b3f"/>',
-      cannon: '<circle cx="47" cy="59" r="18" fill="#696955"/><rect x="48" y="38" width="39" height="13" rx="6" transform="rotate(-12 48 38)" fill="#4d4b3d"/><circle cx="30" cy="80" r="8" fill="#b58b55"/><circle cx="67" cy="80" r="8" fill="#b58b55"/>',
-      flame: '<rect x="25" y="47" width="37" height="30" rx="8" fill="#b04e2e"/><path d="M59 61c18-6 22-13 15-25" fill="none" stroke="#6c4330" stroke-width="8" stroke-linecap="round"/><circle cx="76" cy="32" r="8" fill="#f4b13c"/><rect x="20" y="77" width="54" height="9" rx="4" fill="#9a6b3f"/>',
-      sniper: '<rect x="24" y="63" width="52" height="18" rx="6" fill="#e7d5a0"/><rect x="35" y="43" width="30" height="25" rx="8" fill="#f5f0d8"/><path d="M50 43V20M40 29h20" fill="none" stroke="#d7b76a" stroke-width="5" stroke-linecap="round"/><path d="M26 51h-8M74 51h8" stroke="#8ac7d6" stroke-width="4" stroke-linecap="round"/>',
-      tesla: '<rect x="22" y="70" width="56" height="12" rx="4" fill="#756c53"/><circle cx="50" cy="48" r="20" fill="#c5a25d"/><path d="M54 25c-13 14 13 13-2 30-10 12 10 13-2 24" fill="none" stroke="#e86e63" stroke-width="5"/><circle cx="50" cy="47" r="7" fill="#fff0a6"/>',
-      mortar: '<rect x="20" y="70" width="60" height="12" rx="4" fill="#876342"/><circle cx="34" cy="80" r="9" fill="#d1a56a"/><circle cx="67" cy="80" r="9" fill="#d1a56a"/><path d="M42 66 58 34 68 39 53 70Z" fill="#554a3c"/><path d="M58 22 66 30 58 38 50 30Z" fill="#e86e63"/><path d="M58 26v10M53 31h10" stroke="#fff1c4" stroke-width="2"/>',
-    };
-    return `<svg viewBox="0 0 100 100" role="img" aria-hidden="true">${art[type] || art.gunner}</svg>`;
+    const src = this.spritePaths[type] || this.spritePaths.gunner;
+    return `<img class="tower-sprite" src="${src}" alt="" draggable="false" aria-hidden="true">`;
   }
 
   updateShopDragPreview(event = null) {
@@ -440,13 +465,23 @@ export class UIManager {
   updateMergeIndicators() {
     const run = this.game?.run;
     if (!run) return new Set();
+    const activeDrag = run.drag?.mode === 'merge' && run.drag.ready && run.drag.moved
+      ? run.towers.find((tower) => tower.id === run.drag.towerId)
+      : run.drag?.mode === 'place' && run.drag.inCanvas && run.drag.moved && run.placingType
+        ? { type: run.placingType, level: run.placingLevel || 1 }
+        : null;
+    if (!activeDrag) {
+      run.mergeableTowerIds = new Set();
+      return run.mergeableTowerIds;
+    }
     const groups = new Map();
     for (const tower of run.towers) {
       const key = `${tower.type}:${tower.level}`;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(tower.id);
     }
-    const mergeable = new Set([...groups.values()].filter((ids) => ids.length > 1).flat());
+    const compatible = groups.get(`${activeDrag.type}:${activeDrag.level}`) || [];
+    const mergeable = new Set(compatible.filter((id) => id !== run.drag?.towerId));
     run.mergeableTowerIds = mergeable;
     return mergeable;
   }
@@ -558,6 +593,22 @@ export class UIManager {
     run.mergeTargetId = null;
     if (!drag.moved) this.game.towers.select(run.towers.find((tower) => tower.id === drag.towerId));
     else this.game.feedback('La defensa vuelve a su posición', 'info');
+    run.mergeableTowerIds = new Set();
+  }
+
+  onPointerCancel = (event) => {
+    const run = this.game?.run;
+    if (!run?.drag) return;
+    const drag = run.drag;
+    if (drag.pointerId !== null && event.pointerId !== drag.pointerId) return;
+    if (drag.holdTimer) window.clearTimeout(drag.holdTimer);
+    this.hideShopDragPreview();
+    if (drag.mode === 'place') this.game.towers.cancelPlacement();
+    else {
+      run.drag = null;
+      run.mergeTargetId = null;
+      run.mergeableTowerIds = new Set();
+    }
   }
 
   render() {
@@ -605,7 +656,7 @@ export class UIManager {
       const canMerge = run.towers.some((tower) => tower.id !== selected.id && tower.type === selected.type && tower.level === selected.level);
       const panelKey = `${selected.id}:${selected.level}:${canMerge}:${selected.priority}:${JSON.stringify(run.buffs)}`;
       if (panel && panelKey !== this.selectedPanelKey) {
-        panel.innerHTML = `<div class="selected-tower"><div class="selected-heading"><span class="tower-icon" style="--tower-color:${stats.color}">${stats.icon}</span><div><span class="eyebrow">DEFENSA</span><h3>${stats.name} <b>NV-${selected.level}</b></h3></div><button class="panel-close" aria-label="Cerrar información">×</button></div><div class="selected-stats"><span><small>DAÑO</small><b>${stats.damage}</b></span><span><small>CADENCIA</small><b>${stats.cooldown.toFixed(2)}s</b></span><span><small>ALCANCE</small><b>${Math.round(stats.range)}</b></span></div><div class="tower-action-row"><button data-action="upgrade">MEJORAR</button><button data-action="sell">VENDER</button><button data-action="ability">HABILIDAD</button></div><div class="priority-row"><span>OBJETIVO</span><select class="priority-select"><option value="first">PRIMERO</option><option value="last">ÚLTIMO</option><option value="strong">FUERTE</option><option value="weak">DÉBIL</option><option value="boss">JEFE</option></select></div><button class="merge-button" ${canMerge ? '' : 'disabled'}>FUSIONAR <span>${canMerge ? '◆ LISTA' : '—'}</span></button></div>`;
+        panel.innerHTML = `<div class="selected-tower"><div class="selected-heading"><span class="tower-icon tower-art" style="--tower-color:${stats.color}">${this.towerArt(selected.type)}</span><div><span class="eyebrow">DEFENSA</span><h3>${stats.name} <b>NV-${selected.level}</b></h3></div><button class="panel-close" aria-label="Cerrar información">×</button></div><div class="selected-stats"><span><small>DAÑO</small><b>${stats.damage}</b></span><span><small>CADENCIA</small><b>${stats.cooldown.toFixed(2)}s</b></span><span><small>ALCANCE</small><b>${Math.round(stats.range)}</b></span></div><div class="tower-action-row"><button data-action="upgrade">MEJORAR</button><button data-action="sell">VENDER</button><button data-action="ability">HABILIDAD</button></div><div class="priority-row"><span>OBJETIVO</span><select class="priority-select"><option value="first">PRIMERO</option><option value="last">ÚLTIMO</option><option value="strong">FUERTE</option><option value="weak">DÉBIL</option><option value="boss">JEFE</option></select></div><button class="merge-button" ${canMerge ? '' : 'disabled'}>FUSIONAR <span>${canMerge ? '◆ LISTA' : '—'}</span></button></div>`;
         panel.querySelector('.panel-close').addEventListener('click', () => this.game.towers.select(null));
         panel.querySelector('.priority-select').value = selected.priority; panel.querySelector('.priority-select').addEventListener('change', (event) => { selected.priority = event.target.value; });
         panel.querySelector('.merge-button').addEventListener('click', () => { if (canMerge) this.game.feedback('Mantén pulsada la defensa y arrástrala sobre otra igual', 'merge'); });
@@ -618,27 +669,52 @@ export class UIManager {
     }
   }
 
+  drawSprite(ctx, key, x, y, width, height = width, alpha = 1) {
+    const image = this.sprites[key];
+    if (!image?.naturalWidth) return false;
+    ctx.save();
+    ctx.globalAlpha *= alpha;
+    ctx.drawImage(image, x - width / 2, y - height / 2, width, height);
+    ctx.restore();
+    return true;
+  }
+
+  drawGround(ctx, width, height) {
+    const image = this.sprites.ground;
+    if (!image?.naturalWidth) return false;
+    const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+    const sourceWidth = width / scale;
+    const sourceHeight = height / scale;
+    ctx.drawImage(image, (image.naturalWidth - sourceWidth) / 2, (image.naturalHeight - sourceHeight) / 2, sourceWidth, sourceHeight, 0, 0, width, height);
+    return true;
+  }
+
   drawField() {
     const ctx = this.ctx; const run = this.game.run; const { width, height } = GAME_CONFIG.map;
     if (!ctx || !run?.map) return;
     ctx.clearRect(0, 0, width, height);
-    const grass = ctx.createLinearGradient(0, 0, width, height); grass.addColorStop(0, '#8ca96c'); grass.addColorStop(.55, '#72945b'); grass.addColorStop(1, '#567648'); ctx.fillStyle = grass; ctx.fillRect(0, 0, width, height);
-    ctx.globalAlpha = .13; ctx.fillStyle = '#d4dc9c';
-    for (let i = 0; i < 95; i += 1) { const x = (i * 137 + run.map.seed * 3) % width; const y = (i * 71 + run.map.seed) % height; ctx.fillRect(x, y, 2, 6); }
+    if (!this.drawGround(ctx, width, height)) {
+      const grass = ctx.createLinearGradient(0, 0, width, height); grass.addColorStop(0, '#8ca96c'); grass.addColorStop(.55, '#72945b'); grass.addColorStop(1, '#567648'); ctx.fillStyle = grass; ctx.fillRect(0, 0, width, height);
+    }
+    ctx.globalAlpha = .16; ctx.fillStyle = '#e8f1ab';
+    for (let i = 0; i < 70; i += 1) { const x = (i * 137 + run.map.seed * 3) % width; const y = (i * 71 + run.map.seed) % height; ctx.fillRect(x, y, 2, 5); }
     ctx.globalAlpha = 1;
+    for (const obstacle of run.map.obstacles) {
+      ctx.save(); ctx.translate(obstacle.x, obstacle.y); ctx.rotate(obstacle.rotation || 0);
+      const asset = obstacle.kind === 'tree' ? 'tree' : obstacle.kind === 'shrub' ? 'shrub' : obstacle.kind === 'rock' ? 'rock' : null;
+      const size = obstacle.kind === 'tree' ? obstacle.size * 4.5 : obstacle.size * 3.7;
+      if (asset && this.drawSprite(ctx, asset, 0, obstacle.kind === 'tree' ? size * .08 : 0, size, size, .96)) {
+        ctx.restore();
+        continue;
+      }
+      if (obstacle.kind === 'stump') { ctx.fillStyle = '#765334'; ctx.fillRect(-obstacle.size * .55, -obstacle.size * .4, obstacle.size * 1.1, obstacle.size * .9); ctx.fillStyle = '#c3945c'; ctx.beginPath(); ctx.ellipse(0, -obstacle.size * .42, obstacle.size * .55, obstacle.size * .18, 0, 0, Math.PI * 2); ctx.fill(); }
+      else { ctx.strokeStyle = '#547c42'; ctx.lineWidth = 3; for (let blade = -1; blade <= 1; blade += 1) { ctx.beginPath(); ctx.moveTo(blade * 5, 6); ctx.lineTo(blade * 7 - 3, -obstacle.size); ctx.stroke(); } }
+      ctx.restore();
+    }
     const paths = run.map.paths || [run.map.points];
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     for (const points of paths) {
       ctx.beginPath(); points.forEach((p, index) => index ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.strokeStyle = 'rgba(55, 67, 35, .35)'; ctx.lineWidth = 58; ctx.stroke(); ctx.strokeStyle = '#8d673f'; ctx.lineWidth = 45; ctx.stroke(); ctx.strokeStyle = '#b98a54'; ctx.lineWidth = 37; ctx.stroke(); ctx.strokeStyle = 'rgba(224, 184, 122, .5)'; ctx.lineWidth = 2; ctx.setLineDash([8, 16]); ctx.stroke(); ctx.setLineDash([]);
-    }
-    for (const obstacle of run.map.obstacles) {
-      ctx.save(); ctx.translate(obstacle.x, obstacle.y); ctx.rotate(obstacle.rotation || 0);
-      if (obstacle.kind === 'tree') { ctx.fillStyle = '#60442f'; ctx.fillRect(-4, -obstacle.size, 8, obstacle.size * 2.3); ctx.fillStyle = '#3e5f3c'; ctx.beginPath(); ctx.arc(-9, -obstacle.size * .75, obstacle.size * .72, 0, Math.PI * 2); ctx.arc(8, -obstacle.size * .85, obstacle.size * .9, 0, Math.PI * 2); ctx.fill(); }
-      else if (obstacle.kind === 'shrub') { ctx.fillStyle = '#466e3c'; ctx.beginPath(); ctx.arc(-8, 4, obstacle.size * .7, 0, Math.PI * 2); ctx.arc(7, 2, obstacle.size, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#6f8d49'; ctx.beginPath(); ctx.arc(0, -4, obstacle.size * .55, 0, Math.PI * 2); ctx.fill(); }
-      else if (obstacle.kind === 'stump') { ctx.fillStyle = '#765334'; ctx.fillRect(-obstacle.size * .55, -obstacle.size * .4, obstacle.size * 1.1, obstacle.size * .9); ctx.fillStyle = '#c3945c'; ctx.beginPath(); ctx.ellipse(0, -obstacle.size * .42, obstacle.size * .55, obstacle.size * .18, 0, 0, Math.PI * 2); ctx.fill(); }
-      else if (obstacle.kind === 'grass') { ctx.strokeStyle = '#547c42'; ctx.lineWidth = 3; for (let blade = -1; blade <= 1; blade += 1) { ctx.beginPath(); ctx.moveTo(blade * 5, 6); ctx.lineTo(blade * 7 - 3, -obstacle.size); ctx.stroke(); } }
-      else { ctx.fillStyle = '#737767'; ctx.beginPath(); ctx.moveTo(-obstacle.size, 5); ctx.lineTo(-obstacle.size * .55, -obstacle.size); ctx.lineTo(obstacle.size, -obstacle.size * .6); ctx.lineTo(obstacle.size * .8, 6); ctx.closePath(); ctx.fill(); ctx.strokeStyle = '#9a9a7c'; ctx.stroke(); }
-      ctx.restore();
     }
     for (const points of paths) {
       const entrance = points[0];
@@ -657,7 +733,7 @@ export class UIManager {
     const selected = run.towers.find((tower) => tower.id === run.selectedTowerId); const source = run.drag?.mode === 'merge' ? run.towers.find((tower) => tower.id === run.drag.towerId) : null;
     const rangeTower = source || selected;
     if (rangeTower) { const stats = getTowerStats(rangeTower.type, rangeTower.level, run.buffs); ctx.fillStyle = 'rgba(242, 224, 146, .11)'; ctx.strokeStyle = '#ead58b'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(rangeTower.x, rangeTower.y, stats.range, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
-    if (run.drag?.mode === 'merge') {
+    if (run.drag?.mode === 'merge' && run.drag.ready && run.drag.moved) {
       const source = run.towers.find((tower) => tower.id === run.drag.towerId);
       if (source) {
         for (const tower of run.towers) {
@@ -746,13 +822,12 @@ export class UIManager {
     ctx.save(); ctx.translate(x, y - (animation.lift || 0)); ctx.scale(scale, scale); ctx.globalAlpha *= (animation.alpha || 1) * (tower.id === this.game.run.drag?.towerId ? .55 : 1); if (animation.held) { ctx.shadowColor = 'rgba(24, 38, 22, .48)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 10; }
     if (animation.mergeable) { ctx.strokeStyle = `rgba(255, 220, 111, ${.72 + Math.sin(performance.now() / 240) * .18})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 0, 29 + Math.sin(performance.now() / 180) * 2, 0, Math.PI * 2); ctx.stroke(); }
     if (selected || target) { ctx.strokeStyle = target ? '#7de38b' : '#f1d889'; ctx.lineWidth = target ? 5 : 3; ctx.beginPath(); ctx.arc(0, 0, 25 + (target ? Math.sin(performance.now() / 120) * 2 : 0), 0, Math.PI * 2); ctx.stroke(); }
-    ctx.fillStyle = animation.mergeable ? '#c19b4a' : '#6b482f'; ctx.fillRect(-18, 8, 36, 8); ctx.fillStyle = '#9a6b3f'; ctx.fillRect(-14, 5, 28, 7); ctx.strokeStyle = stats.color; ctx.lineWidth = 2;
-    if (tower.type === 'gunner') { ctx.fillStyle = '#514f42'; ctx.fillRect(-6, -10, 12, 17); ctx.fillStyle = '#827b60'; ctx.fillRect(-3, -18, 6, 11); ctx.fillStyle = '#3c3b35'; ctx.fillRect(1, -20, 17, 4); }
-    else if (tower.type === 'cannon') { ctx.fillStyle = '#6a6a54'; ctx.beginPath(); ctx.arc(0, -2, 11, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#4d4b3d'; ctx.fillRect(-2, -10, 24, 8); ctx.fillStyle = '#b58b55'; ctx.beginPath(); ctx.arc(-8, 8, 5, 0, Math.PI * 2); ctx.arc(8, 8, 5, 0, Math.PI * 2); ctx.fill(); }
-    else if (tower.type === 'flame') { ctx.fillStyle = '#b04e2e'; ctx.beginPath(); ctx.roundRect(-12, -9, 19, 17, 5); ctx.fill(); ctx.strokeStyle = '#e8b35b'; ctx.stroke(); ctx.strokeStyle = '#6c4330'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(6, 0); ctx.quadraticCurveTo(14, -5, 11, -14); ctx.stroke(); ctx.fillStyle = '#f4b13c'; ctx.beginPath(); ctx.arc(12, -16, 4, 0, Math.PI * 2); ctx.fill(); }
-    else if (tower.type === 'sniper') { ctx.fillStyle = '#e7d5a0'; ctx.fillRect(-16, 1, 32, 10); ctx.fillStyle = '#f5f0d8'; ctx.fillRect(-10, -13, 20, 16); ctx.strokeStyle = '#d7b76a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, -13); ctx.lineTo(0, -27); ctx.moveTo(-8, -21); ctx.lineTo(8, -21); ctx.stroke(); ctx.strokeStyle = '#8ac7d6'; ctx.beginPath(); ctx.moveTo(-15, -5); ctx.lineTo(-23, -5); ctx.moveTo(15, -5); ctx.lineTo(23, -5); ctx.stroke(); }
-    else if (tower.type === 'tesla') { ctx.fillStyle = '#756c53'; ctx.fillRect(-12, 4, 24, 8); ctx.fillStyle = '#c5a25d'; ctx.beginPath(); ctx.arc(0, -5, 10, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#e86e63'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, -7, 7, Math.PI * .2, Math.PI * 1.8); ctx.stroke(); ctx.fillStyle = '#fff0a6'; ctx.beginPath(); ctx.arc(0, -8, 4, 0, Math.PI * 2); ctx.fill(); }
-    else { ctx.fillStyle = '#876342'; ctx.fillRect(-15, 2, 30, 10); ctx.fillStyle = '#d1a56a'; ctx.beginPath(); ctx.arc(-10, 8, 5, 0, Math.PI * 2); ctx.arc(10, 8, 5, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#554a3c'; ctx.beginPath(); ctx.moveTo(-5, 2); ctx.lineTo(2, -17); ctx.lineTo(8, -15); ctx.lineTo(5, 3); ctx.closePath(); ctx.fill(); ctx.fillStyle = '#e86e63'; ctx.beginPath(); ctx.moveTo(2, -25); ctx.lineTo(8, -18); ctx.lineTo(2, -12); ctx.lineTo(-4, -18); ctx.closePath(); ctx.fill(); }
+    ctx.fillStyle = animation.mergeable ? '#c19b4a' : 'rgba(48, 63, 38, .34)'; ctx.beginPath(); ctx.ellipse(0, 17, 22, 7, 0, 0, Math.PI * 2); ctx.fill();
+    const spriteSize = 58;
+    if (!this.drawSprite(ctx, tower.type, 0, 0, spriteSize, spriteSize, 1)) {
+      ctx.fillStyle = '#6b482f'; ctx.fillRect(-18, 8, 36, 8); ctx.fillStyle = '#9a6b3f'; ctx.fillRect(-14, 5, 28, 7); ctx.strokeStyle = stats.color; ctx.lineWidth = 2;
+      ctx.fillStyle = '#514f42'; ctx.fillRect(-6, -10, 12, 17); ctx.fillStyle = '#827b60'; ctx.fillRect(-3, -18, 6, 11); ctx.fillStyle = '#3c3b35'; ctx.fillRect(1, -20, 17, 4);
+    }
     ctx.fillStyle = '#f5edc5'; ctx.font = '700 10px Arial'; ctx.textAlign = 'center'; ctx.fillText(`N${tower.level}`, 0, -27); ctx.restore();
   }
 

@@ -54,7 +54,7 @@ export class GameManager {
         spawned: 0, ambientSpawned: 0, ambientSpawnedThisPhase: 0, ambientTimer: difficulty.initialDelay, kills: 0, leaks: 0, spawnTimer: difficulty.initialDelay, bossReadyTimer: 0, bossActive: false, miniBossActive: false,
         bossCurrencyEarned: 0,
         miniBosses: [], upgradeOptions: [], pausedForUpgrade: false, buffs: {},
-        placingType: null, placingLevel: 1, selectedTowerId: null, mergeTargetId: null, drag: null, mergeFx: null, placementPreview: null, ended: false, result: null,
+        placingType: null, placingLevel: 1, selectedTowerId: null, mergeTargetId: null, mergeableTowerIds: new Set(), drag: null, mergeFx: null, placementPreview: null, ended: false, result: null,
       };
       if (!this.ui.showBattle()) {
         this.run = null;
