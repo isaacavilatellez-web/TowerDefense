@@ -1168,6 +1168,41 @@ body { overflow:hidden; }
   .battle-screen .upgrade-clicker { min-height:40px; }
 }
 
+/* Sprites de economía: siempre conservan su proporción y no añaden fondos. */
+.resource-icon-image { display:grid; place-items:center; }
+.resource-icon-image .resource-sprite { width:1.45rem; height:1.45rem; object-fit:contain; display:block; filter:drop-shadow(0 2px 2px rgba(10,36,24,.24)); }
+.inline-resource-icon { display:inline-grid; width:1.1em; height:1.1em; margin-right:3px; vertical-align:-.16em; place-items:center; }
+.inline-resource-icon .resource-sprite { width:100%; height:100%; object-fit:contain; display:block; }
+.inline-resource-sprite { width:1.1em; height:1.1em; object-fit:contain; display:inline-block; vertical-align:-.15em; filter:drop-shadow(0 2px 1px rgba(10,36,24,.2)); }
+.gear-chip-art { width:26px; height:26px; display:grid; place-items:center; }
+.gear-chip-art .gear-sprite { width:100%; height:100%; object-fit:contain; display:block; filter:drop-shadow(0 2px 2px rgba(10,36,24,.24)); }
+.gear-big { min-height:48px; display:grid; place-items:center; }
+.gear-big .gear-sprite { width:48px; height:48px; object-fit:contain; display:block; filter:drop-shadow(0 5px 3px rgba(8,35,22,.25)); }
+.inline-gear-sprite { width:1.3em; height:1.3em; object-fit:contain; display:inline-block; vertical-align:-.3em; margin-right:2px; filter:drop-shadow(0 2px 1px rgba(8,35,22,.22)); }
+.chest-visual .chest-sprite { width:100%; height:100%; object-fit:contain; display:block; filter:drop-shadow(0 11px 9px rgba(3,27,18,.3)); }
+.chest-card[data-chest="wood"] .chest-visual { width:91px; height:84px; }
+.chest-card[data-chest="reinforced"] .chest-visual { width:96px; height:86px; }
+.chest-card[data-chest="military"] .chest-visual { width:96px; height:88px; }
+.chest-card[data-chest="armored"] .chest-visual { width:96px; height:90px; }
+.chest-card[data-chest="commander"] .chest-visual { width:88px; height:98px; margin-top:10px; margin-bottom:7px; }
+.reward-reveal { display:flex; justify-content:center; align-items:center; gap:7px; flex-wrap:wrap; }
+.reward-item { display:inline-flex; align-items:center; gap:3px; white-space:nowrap; }
+.reward-gear-sprite { width:1.35em; height:1.35em; object-fit:contain; display:inline-block; vertical-align:-.3em; filter:drop-shadow(0 2px 1px rgba(8,35,22,.22)); }
+.battle-screen .hud-icon { object-fit:contain; }
+.map-screen .map-topbar .resource-icon-image .resource-sprite { width:14px; height:14px; }
+
+@media (max-width:600px) {
+  .resource-icon-image .resource-sprite { width:1.15rem; height:1.15rem; }
+  .map-screen .map-topbar .resource-icon-image .resource-sprite { width:11px; height:11px; }
+  .gear-chip-art { width:22px; height:22px; }
+  .gear-big .gear-sprite { width:42px; height:42px; }
+  .chest-card[data-chest="wood"] .chest-visual { width:70px; height:65px; }
+  .chest-card[data-chest="reinforced"] .chest-visual { width:74px; height:66px; }
+  .chest-card[data-chest="military"] .chest-visual { width:74px; height:68px; }
+  .chest-card[data-chest="armored"] .chest-visual { width:74px; height:70px; }
+  .chest-card[data-chest="commander"] .chest-visual { width:68px; height:75px; margin-top:5px; margin-bottom:3px; }
+}
+
 /*
  * El panel móvil se dimensiona por contenido. El campo es el único elemento
  * flexible de la composición; el arsenal no reserva una altura artificial.

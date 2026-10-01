@@ -12,6 +12,19 @@ import flameSprite from '../sprites/flm_n1.png';
 import sniperSprite from '../sprites/hie_n1.png';
 import mortarSprite from '../sprites/mis_n1.png';
 import teslaSprite from '../sprites/tes_n1.png';
+import coinSprite from '../sprites/Moneda.png';
+import suppliesSprite from '../sprites/Suministros.png';
+import crystalsSprite from '../sprites/Cristales.png';
+import commonGearSprite from '../sprites/Engranaje_Comun.png';
+import rareGearSprite from '../sprites/Engranaje_Raro.png';
+import epicGearSprite from '../sprites/Engranaje_Epico.png';
+import legendaryGearSprite from '../sprites/Engranaje_Legendario.png';
+import woodChestSprite from '../sprites/Cofre_Madera.png';
+import reinforcedChestSprite from '../sprites/Cofre_Reforzado.png';
+import militaryChestSprite from '../sprites/Cofre_Militar.png';
+import armoredChestSprite from '../sprites/Cofre_Blindado.png';
+import commanderChestSprite from '../sprites/Cofre_Comandante.png';
+import shelterSprite from '../sprites/Refugio.png';
 
 export class UIManager {
   constructor() {
@@ -39,6 +52,19 @@ export class UIManager {
       sniper: sniperSprite,
       mortar: mortarSprite,
       tesla: teslaSprite,
+      coin: coinSprite,
+      supplies: suppliesSprite,
+      crystals: crystalsSprite,
+      'gear-common': commonGearSprite,
+      'gear-rare': rareGearSprite,
+      'gear-epic': epicGearSprite,
+      'gear-legendary': legendaryGearSprite,
+      'chest-wood': woodChestSprite,
+      'chest-reinforced': reinforcedChestSprite,
+      'chest-military': militaryChestSprite,
+      'chest-armored': armoredChestSprite,
+      'chest-commander': commanderChestSprite,
+      shelter: shelterSprite,
     };
   }
 
@@ -68,7 +94,7 @@ export class UIManager {
       <main class="app-shell map-screen">
         <header class="topbar map-topbar">
           <div class="brand-lockup"><span class="brand-mark">✦</span><div><span class="eyebrow">BASE CENTRAL · TEMPORADA 01</span><h1>Tower <em>Defense</em></h1></div></div>
-          <div class="resource-stack"><div class="resource supplies-resource"><span class="resource-icon">▣</span><strong class="supplies-value">${this.game.economy.getSupplies()}</strong><small>SUMINISTROS</small></div><div class="resource special-resource"><span class="resource-icon">✦</span><strong class="crystal-value">${this.game.save.crystals}</strong><small>CRISTALES</small></div></div>
+          ${this.menuResources()}
           ${this.game.save.settings?.developer ? '<span class="dev-indicator">DEV</span>' : ''}
         </header>
         <section class="map-scroll" id="map-scroll">
@@ -100,7 +126,7 @@ export class UIManager {
   }
 
   rewardLabel(reward) {
-    return reward?.supplies ? `+${reward.supplies} SUMINISTROS` : 'SIN RECOMPENSA';
+    return reward?.supplies ? `+${this.resourceValueArt('supplies', `${reward.supplies} SUMINISTROS`)}` : 'SIN RECOMPENSA';
   }
 
   renderMapNodes() {
@@ -190,7 +216,7 @@ export class UIManager {
     const overlay = document.createElement('div');
     overlay.className = 'modal-backdrop';
     const levelReward = GAME_CONFIG.economy.permanent.levelRewards[Math.min(9, Math.max(0, level - 1))] || { first: 0, repeat: 0 };
-    overlay.innerHTML = `<div class="level-modal"><button class="modal-close">×</button><span class="eyebrow">MUNDO ${meta.world.id} · ${meta.world.name.toUpperCase()}</span><h2>NIVEL ${String(level).padStart(2, '0')}</h2><p class="modal-title">${meta.name}</p><div class="mission-grid"><div><span>BIOMA</span><strong>${meta.world.subtitle}</strong></div><div><span>HORDA</span><strong>~${meta.zombies} zombis</strong></div><div><span>DIFICULTAD</span><strong>${'◆'.repeat(meta.difficulty)}${'◇'.repeat(5 - meta.difficulty)}</strong></div><div><span>JEFE</span><strong>${meta.boss}</strong></div></div><div class="reward-row"><span>SUMINISTROS · PRIMERA / REPETICIÓN</span><strong>+${levelReward.first} / +${levelReward.repeat} ▣</strong></div><button class="primary-button play-level">JUGAR NIVEL <span>→</span></button></div>`;
+    overlay.innerHTML = `<div class="level-modal"><button class="modal-close">×</button><span class="eyebrow">MUNDO ${meta.world.id} · ${meta.world.name.toUpperCase()}</span><h2>NIVEL ${String(level).padStart(2, '0')}</h2><p class="modal-title">${meta.name}</p><div class="mission-grid"><div><span>BIOMA</span><strong>${meta.world.subtitle}</strong></div><div><span>HORDA</span><strong>~${meta.zombies} zombis</strong></div><div><span>DIFICULTAD</span><strong>${'◆'.repeat(meta.difficulty)}${'◇'.repeat(5 - meta.difficulty)}</strong></div><div><span>JEFE</span><strong>${meta.boss}</strong></div></div><div class="reward-row"><span>SUMINISTROS · PRIMERA / REPETICIÓN</span><strong>${this.resourceValueArt('supplies', `+${levelReward.first} / +${levelReward.repeat}`)}</strong></div><button class="primary-button play-level">JUGAR NIVEL <span>→</span></button></div>`;
     document.body.append(overlay);
     overlay.querySelector('.modal-close').addEventListener('click', () => overlay.remove());
     overlay.addEventListener('click', (event) => { if (event.target === overlay) overlay.remove(); });
@@ -202,18 +228,18 @@ export class UIManager {
     this.screen = 'chests';
     const economy = GAME_CONFIG.economy.permanent;
     const gearOrder = ['common', 'rare', 'epic', 'legendary'];
-    const gearSummary = gearOrder.map((rarity) => `<span class="gear-chip" style="--gear-color:${economy.gearColors[rarity]}"><i>⚙</i><b class="gear-value-${rarity}">${this.game.economy.gearCount(rarity)}</b><small>${economy.gearLabels[rarity]}</small></span>`).join('');
-    const chestCards = economy.chests.map((chest) => `<article class="chest-card" data-chest="${chest.id}" style="--chest-color:${chest.color}"><span class="rarity">${chest.name.toUpperCase()}</span><div class="chest-visual">🧰</div><h3>${chest.name}</h3><p>Entrega engranajes de rareza variable.</p><div class="chest-timer">▣ ${chest.price.toLocaleString('es-ES')} SUMINISTROS</div><div class="reward-reveal"></div><button class="soft-button open-chest">ABRIR COFRE</button></article>`).join('');
-    const directCards = gearOrder.map((rarity) => `<article class="direct-gear-card" style="--gear-color:${economy.gearColors[rarity]}"><span class="gear-big">⚙</span><strong>${economy.gearLabels[rarity]}</strong><small class="direct-gear-owned">${this.game.economy.gearCount(rarity)} disponibles</small><button class="soft-button buy-gear" data-rarity="${rarity}">COMPRAR · ✦ ${economy.directGearCrystalPrices[rarity]}</button></article>`).join('');
-    this.app.innerHTML = `<main class="app-shell screen-shell"><header class="topbar"><div class="brand-lockup"><span class="brand-mark">✦</span><div><span class="eyebrow">ECONOMÍA PERMANENTE</span><h1>Mis <em>cofres</em></h1></div></div><div class="resource-stack"><div class="resource supplies-resource"><span class="resource-icon">▣</span><strong class="supplies-value">${this.game.economy.getSupplies()}</strong><small>SUMINISTROS</small></div><div class="resource special-resource"><span class="resource-icon">✦</span><strong class="crystal-value">${this.game.save.crystals}</strong><small>CRISTALES</small></div></div></header><section class="screen-head"><div><span class="eyebrow">SUMINISTROS → COFRES → ENGRANAJES</span><h2>Abre y equipa</h2><p>Los cofres son accesibles y aleatorios. Los Cristales permiten elegir un engranaje concreto.</p></div><span class="screen-badge">5 COFRES</span></section><section class="gear-inventory panel"><div><span class="eyebrow">INVENTARIO DE ENGRANAJES</span><h3>Materiales para niveles permanentes</h3></div><div class="gear-summary">${gearSummary}</div></section><section class="collection-grid chest-grid">${chestCards}</section><section class="direct-gear panel"><div class="section-label"><span>COMPRA DIRECTA</span><small>ALTERNATIVA A LA SUERTE</small></div><p>Elige exactamente el material que necesitas. El coste se puede ajustar desde la configuración.</p><div class="direct-gear-grid">${directCards}</div></section>${this.bottomNav('chests')}</main>`;
+    const gearSummary = gearOrder.map((rarity) => `<span class="gear-chip" style="--gear-color:${economy.gearColors[rarity]}"><i class="gear-chip-art">${this.gearArt(rarity)}</i><b class="gear-value-${rarity}">${this.game.economy.gearCount(rarity)}</b><small>${economy.gearLabels[rarity]}</small></span>`).join('');
+    const chestCards = economy.chests.map((chest) => `<article class="chest-card" data-chest="${chest.id}" style="--chest-color:${chest.color}"><span class="rarity">${chest.name.toUpperCase()}</span><div class="chest-visual">${this.chestArt(chest.id)}</div><h3>${chest.name}</h3><p>Entrega engranajes de rareza variable.</p><div class="chest-timer"><span class="inline-resource-icon">${this.resourceArt('supplies')}</span>${chest.price.toLocaleString('es-ES')} SUMINISTROS</div><div class="reward-reveal"></div><button class="soft-button open-chest">ABRIR COFRE</button></article>`).join('');
+    const directCards = gearOrder.map((rarity) => `<article class="direct-gear-card" style="--gear-color:${economy.gearColors[rarity]}"><span class="gear-big">${this.gearArt(rarity)}</span><strong>${economy.gearLabels[rarity]}</strong><small class="direct-gear-owned">${this.game.economy.gearCount(rarity)} disponibles</small><button class="soft-button buy-gear" data-rarity="${rarity}">COMPRAR · <span class="inline-resource-icon">${this.resourceArt('crystals')}</span>${economy.directGearCrystalPrices[rarity]}</button></article>`).join('');
+    this.app.innerHTML = `<main class="app-shell screen-shell"><header class="topbar"><div class="brand-lockup"><span class="brand-mark">✦</span><div><span class="eyebrow">ECONOMÍA PERMANENTE</span><h1>Mis <em>cofres</em></h1></div></div>${this.menuResources()}</header><section class="screen-head"><div><span class="eyebrow">SUMINISTROS → COFRES → ENGRANAJES</span><h2>Abre y equipa</h2><p>Los cofres son accesibles y aleatorios. Los Cristales permiten elegir un engranaje concreto.</p></div><span class="screen-badge">5 COFRES</span></section><section class="gear-inventory panel"><div><span class="eyebrow">INVENTARIO DE ENGRANAJES</span><h3>Materiales para niveles permanentes</h3></div><div class="gear-summary">${gearSummary}</div></section><section class="collection-grid chest-grid">${chestCards}</section><section class="direct-gear panel"><div class="section-label"><span>COMPRA DIRECTA</span><small>ALTERNATIVA A LA SUERTE</small></div><p>Elige exactamente el material que necesitas. El coste se puede ajustar desde la configuración.</p><div class="direct-gear-grid">${directCards}</div></section>${this.bottomNav('chests')}</main>`;
     this.app.querySelectorAll('.open-chest').forEach((button) => button.addEventListener('click', () => {
       const card = button.closest('.chest-card');
       const result = this.game.economy.openChest(card.dataset.chest);
       if (!result.ok) { this.showToast('No tienes suficientes Suministros'); return; }
-      const reward = Object.entries(result.rewards).filter(([, count]) => count > 0).map(([rarity, count]) => `${count} ${economy.gearLabels[rarity].toUpperCase()}`).join(' · ');
+      const reward = Object.entries(result.rewards).filter(([, count]) => count > 0).map(([rarity, count]) => `<span class="reward-item">${this.gearArt(rarity, 'reward-gear-sprite')} ${count} ${economy.gearLabels[rarity].toUpperCase()}</span>`).join('');
       card.classList.remove('opened');
       card.classList.add('opening');
-      card.querySelector('.reward-reveal').textContent = reward;
+      card.querySelector('.reward-reveal').innerHTML = reward;
       window.setTimeout(() => card.classList.add('opened'), 280);
       button.textContent = 'ABRIR OTRO';
       this.app.querySelector('.supplies-value').textContent = this.game.economy.getSupplies();
@@ -239,9 +265,9 @@ export class UIManager {
       const range = Math.min(100, Math.round(stats.range / 2));
       const cost = this.game.towerUpgradeCost(tower.id);
       const available = this.game.economy.gearCount(tower.rarityId);
-      return `<button class="defense-card" data-defense="${tower.id}" data-level="${level}" style="--chest-color:${tower.rarityColor}"><span class="rarity">${tower.rarity} · NIVEL ${level}</span><span class="tower-art defense-art">${this.towerArt(tower.id)}</span><h3>${tower.name}</h3><div class="defense-meta"><span>${tower.type}</span><b>${level >= 10 ? 'MÁXIMO' : `⚙ ${available} / ${cost}`}</b></div><div class="stat-bars"><div class="stat-bar"><span>DAÑO</span><i class="stat-track"><i style="width:${damage}%"></i></i><b>${stats.damage}</b></div><div class="stat-bar"><span>RITMO</span><i class="stat-track"><i style="width:${speed}%"></i></i><b>${Math.round(1 / stats.cooldown * 10)}</b></div><div class="stat-bar"><span>RANGO</span><i class="stat-track"><i style="width:${range}%"></i></i><b>${Math.round(stats.range)}</b></div></div></button>`;
+      return `<button class="defense-card" data-defense="${tower.id}" data-level="${level}" style="--chest-color:${tower.rarityColor}"><span class="rarity">${tower.rarity} · NIVEL ${level}</span><span class="tower-art defense-art">${this.towerArt(tower.id)}</span><h3>${tower.name}</h3><div class="defense-meta"><span>${tower.type}</span><b>${level >= 10 ? 'MÁXIMO' : this.gearCostArt(tower.rarityId, `${available} / ${cost}`)}</b></div><div class="stat-bars"><div class="stat-bar"><span>DAÑO</span><i class="stat-track"><i style="width:${damage}%"></i></i><b>${stats.damage}</b></div><div class="stat-bar"><span>RITMO</span><i class="stat-track"><i style="width:${speed}%"></i></i><b>${Math.round(1 / stats.cooldown * 10)}</b></div><div class="stat-bar"><span>RANGO</span><i class="stat-track"><i style="width:${range}%"></i></i><b>${Math.round(stats.range)}</b></div></div></button>`;
     }).join('');
-    this.app.innerHTML = `<main class="app-shell screen-shell"><header class="topbar"><div class="brand-lockup"><span class="brand-mark">✦</span><div><span class="eyebrow">ARSENAL DE LA BASE</span><h1>Tus <em>defensas</em></h1></div></div><div class="resource-stack"><div class="resource supplies-resource"><span class="resource-icon">▣</span><strong>${this.game.economy.getSupplies()}</strong><small>SUMINISTROS</small></div><div class="resource special-resource"><span class="resource-icon">✦</span><strong class="crystal-value">${this.game.save.crystals}</strong><small>CRISTALES</small></div></div></header><section class="screen-head"><div><span class="eyebrow">NIVEL PERMANENTE · EVOLUCIÓN EN PARTIDA</span><h2>Elige tu guardián</h2><p>Mejora estadísticas base con engranajes. Las fusiones siguen siendo evoluciones temporales de cada partida.</p></div><span class="screen-badge">${Object.keys(GAME_CONFIG.towers).length} DEFENSAS</span></section><section class="collection-grid defense-grid">${cards}</section><section class="defense-detail panel" id="defense-detail"></section>${this.bottomNav('defenses')}</main>`;
+    this.app.innerHTML = `<main class="app-shell screen-shell"><header class="topbar"><div class="brand-lockup"><span class="brand-mark">✦</span><div><span class="eyebrow">ARSENAL DE LA BASE</span><h1>Tus <em>defensas</em></h1></div></div>${this.menuResources()}</header><section class="screen-head"><div><span class="eyebrow">NIVEL PERMANENTE · EVOLUCIÓN EN PARTIDA</span><h2>Elige tu guardián</h2><p>Mejora estadísticas base con engranajes. Las fusiones siguen siendo evoluciones temporales de cada partida.</p></div><span class="screen-badge">${Object.keys(GAME_CONFIG.towers).length} DEFENSAS</span></section><section class="collection-grid defense-grid">${cards}</section><section class="defense-detail panel" id="defense-detail"></section>${this.bottomNav('defenses')}</main>`;
     this.app.querySelectorAll('[data-defense]').forEach((card) => card.addEventListener('click', () => this.selectDefense(card.dataset.defense)));
     this.selectDefense('gunner');
     this.bindNav();
@@ -258,7 +284,7 @@ export class UIManager {
     const detail = this.app.querySelector('#defense-detail');
     if (!detail) return;
     const nextLabel = nextStats ? `Siguiente: ${nextStats.damage} daño · ${Math.round(nextStats.range)} alcance` : 'Esta defensa ya está al máximo.';
-    detail.innerHTML = `<span class="tower-art detail-art">${this.towerArt(type)}</span><div><span class="eyebrow">${tower.rarity.toUpperCase()} · NIVEL PERMANENTE</span><h3>${tower.name} · NIVEL ${level}</h3><p>${tower.description}</p><p class="next-upgrade">${nextLabel}</p></div><div class="detail-stats"><span>DAÑO<b>${stats.damage}${nextStats ? ` → ${nextStats.damage}` : ''}</b></span><span>RITMO<b>${Math.round(1 / stats.cooldown * 10)}${nextStats ? ` → ${Math.round(1 / nextStats.cooldown * 10)}` : ''}</b></span><span>RANGO<b>${Math.round(stats.range)}${nextStats ? ` → ${Math.round(nextStats.range)}` : ''}</b></span></div><div class="gear-cost-detail"><span>ENGRANAJES</span><b>${level >= 10 ? 'MÁXIMO' : `${available} / ${cost}`}</b></div><button class="soft-button defense-upgrade" ${level >= 10 || available < cost ? 'disabled' : ''}>${level >= 10 ? 'NIVEL MÁXIMO' : 'MEJORAR'}</button>`;
+    detail.innerHTML = `<span class="tower-art detail-art">${this.towerArt(type)}</span><div><span class="eyebrow">${tower.rarity.toUpperCase()} · NIVEL PERMANENTE</span><h3>${tower.name} · NIVEL ${level}</h3><p>${tower.description}</p><p class="next-upgrade">${nextLabel}</p></div><div class="detail-stats"><span>DAÑO<b>${stats.damage}${nextStats ? ` → ${nextStats.damage}` : ''}</b></span><span>RITMO<b>${Math.round(1 / stats.cooldown * 10)}${nextStats ? ` → ${Math.round(1 / nextStats.cooldown * 10)}` : ''}</b></span><span>RANGO<b>${Math.round(stats.range)}${nextStats ? ` → ${Math.round(nextStats.range)}` : ''}</b></span></div><div class="gear-cost-detail"><span>ENGRANAJES</span><b>${level >= 10 ? 'MÁXIMO' : this.gearCostArt(tower.rarityId, `${available} / ${cost}`)}</b></div><button class="soft-button defense-upgrade" ${level >= 10 || available < cost ? 'disabled' : ''}>${level >= 10 ? 'NIVEL MÁXIMO' : 'MEJORAR'}</button>`;
     detail.querySelector('.defense-upgrade').addEventListener('click', () => {
       if (!this.game.upgradePermanentTower(type)) {
         this.showToast(`Necesitas ${cost} engranajes ${tower.rarity.toLowerCase()}`);
@@ -275,7 +301,7 @@ export class UIManager {
     const completed = this.game.save.completedLevels.length;
     const level = Math.max(1, Math.floor(completed / 3) + 1);
     const progress = completed % 3 === 0 && completed ? 100 : Math.round((completed % 3) / 3 * 100);
-    this.app.innerHTML = `<main class="app-shell screen-shell"><header class="topbar"><div class="brand-lockup"><span class="brand-mark">✦</span><div><span class="eyebrow">CENTRO DE MANDO</span><h1>Mi <em>comandante</em></h1></div></div><div class="resource-stack"><div class="resource supplies-resource"><span class="resource-icon">▣</span><strong>${this.game.economy.getSupplies()}</strong><small>SUMINISTROS</small></div><div class="resource special-resource"><span class="resource-icon">✦</span><strong>${this.game.save.crystals}</strong><small>CRISTALES</small></div></div></header><section class="screen-head"><div><span class="eyebrow">PROGRESIÓN DEL JUGADOR</span><h2>La base crece contigo</h2><p>Completa sectores para conseguir Suministros y desarrolla defensas con Engranajes.</p></div><span class="screen-badge">NIVEL ${level}</span></section><section class="commander-hero"><div class="commander-avatar">♙</div><div><span class="eyebrow">COMANDANTE SELECCIONADO</span><h3>Ingeniera Nova</h3><p>Optimiza la base y convierte cada recurso en una oportunidad.</p><div class="xp-row"><div class="xp-label"><span>NIVEL ${level}</span><span>${progress}% XP</span></div><div class="progress-track"><i class="xp-progress" style="width:${progress}%"></i></div></div></div></section><section class="commander-grid"><article class="panel"><h3>Habilidades</h3><div class="skill-row"><div><strong>Reactor eficiente</strong><span>+10% monedas por clic</span></div><b>ACTIVA</b></div><div class="skill-row"><div><strong>Orden de construcción</strong><span>Reduce el coste inicial</span></div><b>NV. 2</b></div><div class="skill-row"><div><strong>Último bastión</strong><span>Refuerza la vida de la base</span></div><b>NV. 1</b></div></article><article class="panel"><h3>Resumen de campaña</h3><div class="skill-row"><div><strong>Sectores superados</strong><span>Tu avance en el mapa</span></div><b>${completed}</b></div><div class="skill-row"><div><strong>Estrellas reunidas</strong><span>Valoración total</span></div><b>${Object.values(this.game.save.stars).reduce((sum, stars) => sum + stars, 0)}</b></div></article></section>${this.bottomNav('commanders')}</main>`;
+    this.app.innerHTML = `<main class="app-shell screen-shell"><header class="topbar"><div class="brand-lockup"><span class="brand-mark">✦</span><div><span class="eyebrow">CENTRO DE MANDO</span><h1>Mi <em>comandante</em></h1></div></div>${this.menuResources()}</header><section class="screen-head"><div><span class="eyebrow">PROGRESIÓN DEL JUGADOR</span><h2>La base crece contigo</h2><p>Completa sectores para conseguir Suministros y desarrolla defensas con Engranajes.</p></div><span class="screen-badge">NIVEL ${level}</span></section><section class="commander-hero"><div class="commander-avatar">♙</div><div><span class="eyebrow">COMANDANTE SELECCIONADO</span><h3>Ingeniera Nova</h3><p>Optimiza la base y convierte cada recurso en una oportunidad.</p><div class="xp-row"><div class="xp-label"><span>NIVEL ${level}</span><span>${progress}% XP</span></div><div class="progress-track"><i class="xp-progress" style="width:${progress}%"></i></div></div></div></section><section class="commander-grid"><article class="panel"><h3>Habilidades</h3><div class="skill-row"><div><strong>Reactor eficiente</strong><span>+10% monedas por clic</span></div><b>ACTIVA</b></div><div class="skill-row"><div><strong>Orden de construcción</strong><span>Reduce el coste inicial</span></div><b>NV. 2</b></div><div class="skill-row"><div><strong>Último bastión</strong><span>Refuerza la vida de la base</span></div><b>NV. 1</b></div></article><article class="panel"><h3>Resumen de campaña</h3><div class="skill-row"><div><strong>Sectores superados</strong><span>Tu avance en el mapa</span></div><b>${completed}</b></div><div class="skill-row"><div><strong>Estrellas reunidas</strong><span>Valoración total</span></div><b>${Object.values(this.game.save.stars).reduce((sum, stars) => sum + stars, 0)}</b></div></article></section>${this.bottomNav('commanders')}</main>`;
     this.bindNav();
   }
 
@@ -309,12 +335,12 @@ export class UIManager {
     const nextClickValue = GAME_CONFIG.economy.clickValues[run.clickerLevel] || 'MÁX';
     const clickerCost = this.game.economy.clickerCost() || 'MÁX';
     console.log('showBattle', { level: run?.level, mapReady: Boolean(run?.map) });
-    this.app.innerHTML = `<main class="app-shell battle-screen ${infinite ? 'infinite-battle' : ''}"><header class="battle-header"><button class="icon-button back-map" aria-label="Volver al mapa">‹</button><div class="battle-title"><h1>${battleLabel}</h1></div><div class="battle-progress"><div class="battle-progress-top"><span class="phase-label">${infinite ? 'DAÑO' : 'OLEADA'}</span><b class="progress-value">0%</b></div><div class="progress-track"><i class="wave-progress"></i><span class="progress-marker marker-10"></span><span class="progress-marker marker-20"></span><span class="progress-marker marker-30"></span><span class="progress-marker marker-40"></span><span class="progress-marker marker-50"></span><span class="progress-marker marker-60"></span><span class="progress-marker marker-70"></span><span class="progress-marker marker-80"></span><span class="progress-marker marker-90"></span></div><small class="phase-value">${infinite ? 'FASE EN CURSO' : 'PREPARACIÓN'}</small><small class="next-boss">${infinite ? '' : 'SIGUIENTE · MINIBOSS'}</small></div><div class="battle-resources"><span class="hud-resource coins-resource"><i class="hud-icon coin-icon" aria-hidden="true">◆</i><b class="coins-value">${run.coins}</b></span>${infinite ? '' : `<span class="hud-resource enemies-resource"><i class="hud-icon enemy-icon" aria-hidden="true">●</i><b class="enemy-count">0/${run.totalEnemies}</b></span>`}</div></header><section class="battle-layout"><div class="game-field"><canvas id="battle-canvas" width="540" height="640"></canvas><div class="boss-hud" id="boss-hud"><div><strong class="boss-name">THE TITAN</strong><span class="boss-health-label">100%</span></div><div class="boss-health-track"><i class="boss-progress"></i></div></div><div class="field-hint" id="field-hint">Mantén y arrastra hasta una zona verde</div><div class="boss-warning" id="boss-warning"><span>MINIBOSS</span><strong>THE TITAN</strong></div></div><aside class="battle-side"><div class="tower-shop"><div class="section-label"><span>DEFENSAS</span><small>ARRASTRA AL MAPA</small></div><div class="tower-cards">${Object.values(GAME_CONFIG.towers).map((tower) => `<button class="tower-card" data-tower="${tower.id}" title="Arrastra para colocar o evolucionar" style="--rarity-color:${tower.rarityColor}"><span class="tower-art" style="--tower-color:${tower.color}">${this.towerArt(tower.id)}</span><span><strong>${tower.shortName}</strong><small>${tower.name} · NIVEL ${this.game.towerLevel(tower.id)}</small></span><em>◆ ${tower.cost}</em></button>`).join('')}</div></div><div class="clicker-zone"><div class="clicker-currency"><i class="hud-icon coin-icon" aria-hidden="true">◆</i><b class="coins-value">${run.coins}</b></div><div class="clicker-card"><button class="clicker-button" id="clicker-button" aria-label="CLICKER ×${currentClickValue}"><span class="clicker-title">CLICKER</span><strong>×<b class="click-value">${currentClickValue}</b></strong></button></div><button class="upgrade-clicker" id="upgrade-clicker" aria-label="MEJORAR a ×${nextClickValue} por ◆ ${clickerCost}"><strong>MEJORAR <span aria-hidden="true">→</span> ×<b class="clicker-next-level">${nextClickValue}</b></strong><span class="clicker-price">◆ <b class="clicker-cost">${clickerCost}</b></span></button></div><div class="tower-panel" id="tower-panel"></div></aside></section><div class="shop-drag-preview" id="shop-drag-preview" aria-hidden="true"></div><div class="feedback" id="feedback"></div><div class="upgrade-overlay" id="upgrade-overlay"></div><div class="result-overlay" id="result-overlay"></div></main>`;
+    this.app.innerHTML = `<main class="app-shell battle-screen ${infinite ? 'infinite-battle' : ''}"><header class="battle-header"><button class="icon-button back-map" aria-label="Volver al mapa">‹</button><div class="battle-title"><h1>${battleLabel}</h1></div><div class="battle-progress"><div class="battle-progress-top"><span class="phase-label">${infinite ? 'DAÑO' : 'OLEADA'}</span><b class="progress-value">0%</b></div><div class="progress-track"><i class="wave-progress"></i><span class="progress-marker marker-10"></span><span class="progress-marker marker-20"></span><span class="progress-marker marker-30"></span><span class="progress-marker marker-40"></span><span class="progress-marker marker-50"></span><span class="progress-marker marker-60"></span><span class="progress-marker marker-70"></span><span class="progress-marker marker-80"></span><span class="progress-marker marker-90"></span></div><small class="phase-value">${infinite ? 'FASE EN CURSO' : 'PREPARACIÓN'}</small><small class="next-boss">${infinite ? '' : 'SIGUIENTE · MINIBOSS'}</small></div><div class="battle-resources"><span class="hud-resource coins-resource">${this.resourceArt('coin', 'hud-icon coin-icon')}<b class="coins-value">${run.coins}</b></span>${infinite ? '' : `<span class="hud-resource enemies-resource"><i class="hud-icon enemy-icon" aria-hidden="true">●</i><b class="enemy-count">0/${run.totalEnemies}</b></span>`}</div></header><section class="battle-layout"><div class="game-field"><canvas id="battle-canvas" width="540" height="640"></canvas><div class="boss-hud" id="boss-hud"><div><strong class="boss-name">THE TITAN</strong><span class="boss-health-label">100%</span></div><div class="boss-health-track"><i class="boss-progress"></i></div></div><div class="field-hint" id="field-hint">Mantén y arrastra hasta una zona verde</div><div class="boss-warning" id="boss-warning"><span>MINIBOSS</span><strong>THE TITAN</strong></div></div><aside class="battle-side"><div class="tower-shop"><div class="section-label"><span>DEFENSAS</span><small>ARRASTRA AL MAPA</small></div><div class="tower-cards">${Object.values(GAME_CONFIG.towers).map((tower) => `<button class="tower-card" data-tower="${tower.id}" title="Arrastra para colocar o evolucionar" style="--rarity-color:${tower.rarityColor}"><span class="tower-art" style="--tower-color:${tower.color}">${this.towerArt(tower.id)}</span><span><strong>${tower.shortName}</strong><small>${tower.name} · NIVEL ${this.game.towerLevel(tower.id)}</small></span><em>${this.resourceArt('coin', 'hud-icon coin-icon')}${tower.cost}</em></button>`).join('')}</div></div><div class="clicker-zone"><div class="clicker-currency">${this.resourceArt('coin', 'hud-icon coin-icon')}<b class="coins-value">${run.coins}</b></div><div class="clicker-card"><button class="clicker-button" id="clicker-button" aria-label="CLICKER ×${currentClickValue}"><span class="clicker-title">CLICKER</span><strong>×<b class="click-value">${currentClickValue}</b></strong></button></div><button class="upgrade-clicker" id="upgrade-clicker" aria-label="MEJORAR a ×${nextClickValue} por ◆ ${clickerCost}"><strong>MEJORAR <span aria-hidden="true">→</span> ×<b class="clicker-next-level">${nextClickValue}</b></strong><span class="clicker-price">${this.resourceArt('coin', 'hud-icon coin-icon')}<b class="clicker-cost">${clickerCost}</b></span></button></div><div class="tower-panel" id="tower-panel"></div></aside></section><div class="shop-drag-preview" id="shop-drag-preview" aria-hidden="true"></div><div class="feedback" id="feedback"></div><div class="upgrade-overlay" id="upgrade-overlay"></div><div class="result-overlay" id="result-overlay"></div></main>`;
     this.app.querySelectorAll('.tower-card').forEach((card) => {
       const tower = GAME_CONFIG.towers[card.dataset.tower];
       const cost = towerCost(card.dataset.tower, this.game.towerLevel(card.dataset.tower));
       const price = card.querySelector('em');
-      if (tower && price) price.textContent = `◆ ${cost}`;
+      if (tower && price) price.innerHTML = `${this.resourceArt('coin', 'hud-icon coin-icon')}${cost}`;
     });
     this.canvas = this.app.querySelector('#battle-canvas');
     this.ctx = this.canvas?.getContext('2d') || null;
@@ -476,6 +502,36 @@ export class UIManager {
     return `<img class="tower-sprite" src="${src}" alt="" draggable="false" aria-hidden="true">`;
   }
 
+  assetArt(key, className, alt = '') {
+    const src = this.spritePaths[key];
+    if (!src) return '';
+    return `<img class="${className}" src="${src}" alt="${alt}" draggable="false" aria-hidden="true">`;
+  }
+
+  resourceArt(resource, className = 'resource-sprite') {
+    return this.assetArt(resource, className);
+  }
+
+  resourceValueArt(resource, value) {
+    return `${this.resourceArt(resource, 'inline-resource-sprite')} ${value}`;
+  }
+
+  gearArt(rarity, className = 'gear-sprite') {
+    return this.assetArt(`gear-${rarity}`, className);
+  }
+
+  gearCostArt(rarity, value) {
+    return `${this.gearArt(rarity, 'inline-gear-sprite')} ${value}`;
+  }
+
+  chestArt(chestId, className = 'chest-sprite') {
+    return this.assetArt(`chest-${chestId}`, className);
+  }
+
+  menuResources() {
+    return `<div class="resource-stack"><div class="resource supplies-resource"><span class="resource-icon resource-icon-image">${this.resourceArt('supplies')}</span><strong class="supplies-value">${this.game.economy.getSupplies()}</strong><small>SUMINISTROS</small></div><div class="resource special-resource"><span class="resource-icon resource-icon-image">${this.resourceArt('crystals')}</span><strong class="crystal-value">${this.game.save.crystals}</strong><small>CRISTALES</small></div></div>`;
+  }
+
   updateShopDragPreview(event = null) {
     const node = this.app.querySelector('#shop-drag-preview');
     const run = this.game?.run;
@@ -500,7 +556,7 @@ export class UIManager {
     const shellRect = this.app.querySelector('.battle-screen').getBoundingClientRect();
     if (node.dataset.type !== run.placingType) {
       node.dataset.type = run.placingType;
-      node.innerHTML = `<div class="drag-preview-card" style="--rarity-color:${tower.rarityColor}"><span class="drag-preview-art">${this.towerArt(tower.id)}</span><strong>${tower.name}</strong><small>NV.${run.placingLevel || 1} · ◆ ${towerCost(tower.id, run.placingLevel || 1)}</small></div>`;
+      node.innerHTML = `<div class="drag-preview-card" style="--rarity-color:${tower.rarityColor}"><span class="drag-preview-art">${this.towerArt(tower.id)}</span><strong>${tower.name}</strong><small>NV.${run.placingLevel || 1} · ${this.resourceArt('coin', 'inline-resource-sprite')}${towerCost(tower.id, run.placingLevel || 1)}</small></div>`;
     }
     node.style.left = `${drag.clientX - shellRect.left}px`;
     node.style.top = `${drag.clientY - shellRect.top}px`;
@@ -782,7 +838,13 @@ export class UIManager {
       ctx.strokeStyle = '#e7c27d'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(entrance.x, entrance.y, 16, 0, Math.PI * 2); ctx.stroke();
       ctx.fillStyle = '#fff5c4'; ctx.font = '900 9px Nunito'; ctx.textAlign = 'center'; ctx.fillText('ENTRADA', entrance.x, entrance.y + 3);
     }
-    const base = paths[0][paths[0].length - 1]; ctx.fillStyle = '#6b4c31'; ctx.strokeStyle = '#e7c27d'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(base.x, base.y, 31, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#efe0ad'; ctx.font = '700 18px Arial'; ctx.textAlign = 'center'; ctx.fillText('⌂', base.x, base.y + 7); ctx.font = '700 11px Arial'; ctx.fillText('REFUGIO', base.x, base.y + 43);
+    const base = paths[0][paths[0].length - 1];
+    const shelterDrawn = this.drawSprite(ctx, 'shelter', base.x, base.y - 7, 88, 88, 1);
+    if (!shelterDrawn) {
+      ctx.fillStyle = '#6b4c31'; ctx.strokeStyle = '#e7c27d'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(base.x, base.y, 31, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#efe0ad'; ctx.font = '700 18px Arial'; ctx.textAlign = 'center'; ctx.fillText('⌂', base.x, base.y + 7);
+    }
+    ctx.fillStyle = '#efe0ad'; ctx.font = '700 11px Arial'; ctx.textAlign = 'center'; ctx.fillText('REFUGIO', base.x, base.y + 43);
     const healthWidth = 82;
     const healthX = Math.max(12, Math.min(width - healthWidth - 12, base.x + 38));
     const healthY = Math.max(16, base.y - 14);
@@ -939,9 +1001,9 @@ export class UIManager {
         if (button.dataset.result === 'upgrades') this.game.openInfiniteUpgrades({ discardRun: true });
       }));
     } else {
-      const specialReward = run.bossCurrencyEarned ? `<br><strong>+${run.bossCurrencyEarned} ✦ CRISTALES</strong>` : '';
+      const specialReward = run.bossCurrencyEarned ? `<br><strong>${this.resourceValueArt('crystals', `+${run.bossCurrencyEarned} CRISTALES`)}</strong>` : '';
       const suppliesReward = victory ? (run.suppliesReward || 0) : 0;
-      overlay.innerHTML = `<div class="result-card ${victory ? 'victory' : 'defeat'}"><span class="eyebrow">${victory ? 'SECTOR ASEGURADO' : 'SEÑAL PERDIDA'}</span><h2>${victory ? 'VICTORIA' : 'LA BASE HA CAÍDO'}</h2><p>${victory ? 'THE TITAN ha sido neutralizado. El siguiente sector está disponible.' : 'Has resistido lo suficiente para recuperar recursos. Inténtalo de nuevo.'}</p>${victory ? `<div class="stars-result">${'★'.repeat(this.game.save.stars[run.level] || 1)}</div>` : ''}<div class="result-reward">${victory ? `+${suppliesReward} ▣ SUMINISTROS` : 'SIN SUMINISTROS · COMPLETA EL NIVEL PARA COBRAR'}${specialReward}</div><button class="primary-button result-button" data-result="map">${victory ? 'CONTINUAR' : 'VOLVER AL MAPA'} <span>→</span></button></div>`;
+      overlay.innerHTML = `<div class="result-card ${victory ? 'victory' : 'defeat'}"><span class="eyebrow">${victory ? 'SECTOR ASEGURADO' : 'SEÑAL PERDIDA'}</span><h2>${victory ? 'VICTORIA' : 'LA BASE HA CAÍDO'}</h2><p>${victory ? 'THE TITAN ha sido neutralizado. El siguiente sector está disponible.' : 'Has resistido lo suficiente para recuperar recursos. Inténtalo de nuevo.'}</p>${victory ? `<div class="stars-result">${'★'.repeat(this.game.save.stars[run.level] || 1)}</div>` : ''}<div class="result-reward">${victory ? this.resourceValueArt('supplies', `+${suppliesReward} SUMINISTROS`) : 'SIN SUMINISTROS · COMPLETA EL NIVEL PARA COBRAR'}${specialReward}</div><button class="primary-button result-button" data-result="map">${victory ? 'CONTINUAR' : 'VOLVER AL MAPA'} <span>→</span></button></div>`;
       overlay.querySelector('[data-result="map"]').addEventListener('click', () => this.game.returnToMap());
     }
     overlay.classList.add('visible');
