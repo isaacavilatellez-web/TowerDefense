@@ -438,10 +438,10 @@ body { display:grid; place-items:center; overflow:hidden; background:radial-grad
 .screen-shell .defense-card .tower-icon { width:100%; height:145px; margin:10px auto 12px; border:0; border-radius:18px; color:var(--ink); background:linear-gradient(145deg,rgba(255,255,255,.3),rgba(255,255,255,.08)); font-size:5.2rem; box-shadow:inset 0 -10px 20px rgba(8,43,28,.1); }
 .screen-shell .defense-card h3 { font-size:1.18rem; }
 .screen-shell .defense-card .stat-bars { margin-top:auto; }
-.screen-shell .defense-card[data-level="10"] .defense-art { box-shadow:inset 0 -10px 20px rgba(8,43,28,.1), 0 0 0 4px color-mix(in srgb,var(--chest-color) 45%,transparent); }
+.screen-shell .defense-card[data-level="10"] .defense-art { box-shadow:inset 0 -10px 20px rgba(8,43,28,.1), 0 0 0 4px color-mix(in srgb,var(--rarity-color) 45%,transparent); }
 .screen-shell .defense-card[data-level="7"] .defense-art,
 .screen-shell .defense-card[data-level="8"] .defense-art,
-.screen-shell .defense-card[data-level="9"] .defense-art { box-shadow:inset 0 -10px 20px rgba(8,43,28,.1), 0 0 0 3px color-mix(in srgb,var(--chest-color) 28%,transparent); }
+.screen-shell .defense-card[data-level="9"] .defense-art { box-shadow:inset 0 -10px 20px rgba(8,43,28,.1), 0 0 0 3px color-mix(in srgb,var(--rarity-color) 28%,transparent); }
 @media (max-width:540px) { .screen-shell .defense-card .tower-icon { height:108px; font-size:4rem; } }
 
 /* La batalla es una vista cerrada: HUD, campo y arsenal comparten el alto del frame. */
@@ -1502,4 +1502,157 @@ body { overflow:hidden; }
   .screen-shell .defense-card .defense-meta { margin-top:8px; }
   .screen-shell .chest-timer .inline-resource-icon,
   .screen-shell .buy-gear .inline-resource-icon { width:22px; height:22px; }
+}
+
+/* DEFENSAS: cada carta mantiene una zona de contenido independiente y usa
+   la rareza real de la defensa como su identidad visual. */
+.screen-shell .defense-card {
+  --card-ink: #20352b;
+  min-height:0;
+  padding:12px 10px 13px;
+  overflow:visible;
+  color:var(--card-ink);
+  border:2px solid color-mix(in srgb, var(--rarity-color) 78%, #20352b 22%);
+  background:linear-gradient(155deg,
+    color-mix(in srgb, var(--rarity-color) 38%, #ffffff 62%),
+    color-mix(in srgb, var(--rarity-color) 22%, #eef3ef 78%));
+  box-shadow:0 7px 16px rgba(10,42,28,.18), inset 0 0 0 1px rgba(255,255,255,.5);
+  transform:none;
+}
+
+.app-shell.screen-shell {
+  scroll-padding-bottom:calc(164px + env(safe-area-inset-bottom));
+}
+
+.screen-shell .defense-card:hover,
+.screen-shell .defense-card:active {
+  transform:none;
+  border-color:color-mix(in srgb, var(--rarity-color) 88%, #20352b 12%);
+  box-shadow:0 7px 16px rgba(10,42,28,.18), inset 0 0 0 1px rgba(255,255,255,.5);
+}
+
+.screen-shell .defense-card > .rarity {
+  position:static;
+  min-height:25px;
+  padding:4px 6px;
+  color:var(--card-ink);
+  border:1px solid color-mix(in srgb, var(--rarity-color) 72%, #20352b 28%);
+  border-radius:8px;
+  background:color-mix(in srgb, var(--rarity-color) 48%, #ffffff 52%);
+  font-size:.55rem;
+  line-height:1.1;
+  letter-spacing:.08em;
+  text-align:center;
+}
+
+.screen-shell .defense-card .defense-image {
+  position:static;
+  flex:0 0 auto;
+  width:100%;
+  height:clamp(105px, 17vw, 140px);
+  min-height:105px;
+  margin:10px 0 10px;
+  padding:10px;
+  display:grid;
+  place-items:center;
+  overflow:visible;
+  border:1px solid color-mix(in srgb, var(--rarity-color) 44%, #ffffff 56%);
+  border-radius:14px;
+  background:rgba(255,255,255,.42);
+  box-shadow:inset 0 -7px 12px rgba(8,43,28,.08);
+  transform:none;
+}
+
+.screen-shell .defense-card .defense-image img {
+  position:static;
+  width:100%;
+  height:100%;
+  max-width:100%;
+  max-height:100%;
+  margin:0;
+  display:block;
+  object-fit:contain;
+  transform:none;
+  filter:drop-shadow(0 5px 4px rgba(8,35,22,.2));
+}
+
+.screen-shell .defense-card .defense-name {
+  position:static;
+  min-height:2.05em;
+  margin:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--card-ink);
+  font-size:clamp(.93rem, 3.4vw, 1.18rem);
+  line-height:1;
+  text-align:center;
+  overflow-wrap:anywhere;
+}
+
+.screen-shell .defense-card .defense-meta {
+  position:static;
+  min-height:27px;
+  margin:8px 0 0;
+  color:rgba(32,53,43,.72);
+  align-items:center;
+}
+
+.screen-shell .defense-card .defense-meta b {
+  color:var(--card-ink);
+  font-size:.55rem;
+}
+
+.screen-shell .defense-card .stat-bars {
+  position:static;
+  width:100%;
+  margin:10px 0 0;
+}
+
+.screen-shell .defense-card .stat-bar {
+  color:rgba(32,53,43,.72);
+}
+
+.screen-shell .defense-card .stat-bar > b {
+  color:var(--card-ink);
+}
+
+.screen-shell .defense-card .stat-track {
+  background:rgba(32,53,43,.2);
+}
+
+.screen-shell .defense-card .stat-track i {
+  background:var(--rarity-color);
+}
+
+.screen-shell .defense-card[data-level="10"] .defense-image,
+.screen-shell .defense-card[data-level="7"] .defense-image,
+.screen-shell .defense-card[data-level="8"] .defense-image,
+.screen-shell .defense-card[data-level="9"] .defense-image {
+  box-shadow:inset 0 -7px 12px rgba(8,43,28,.08);
+}
+
+@media (max-width:600px) {
+  .screen-shell .defense-card {
+    padding:10px 8px 11px;
+  }
+
+  .screen-shell .defense-card .defense-image {
+    height:clamp(104px, 29vw, 124px);
+    min-height:104px;
+    margin:8px 0 9px;
+    padding:9px;
+  }
+
+  .screen-shell .defense-card .defense-name {
+    font-size:clamp(.9rem, 4vw, 1.05rem);
+  }
+
+  .screen-shell .defense-card .defense-meta {
+    margin-top:6px;
+  }
+
+  .screen-shell .defense-card .stat-bars {
+    margin-top:8px;
+  }
 }
