@@ -89,10 +89,10 @@ export class GameManager {
 
   infiniteRewardFor(phase) {
     const safePhase = Math.max(1, Math.floor(Number(phase) || 1));
-    const rewards = GAME_CONFIG.infinite.rewardPhases;
-    if (safePhase === 1) return { ...rewards.first };
-    if (safePhase % rewards.milestoneEvery === 0) return { ...rewards.milestone };
-    return null;
+    const rewards = GAME_CONFIG.economy.permanent.infiniteRewards;
+    const base = rewards.base.start + Math.max(0, safePhase - 1) * rewards.base.step;
+    const milestone = Number(rewards.milestones[safePhase]) || 0;
+    return { supplies: base + milestone, milestone };
   }
 
   createInfiniteRun(phase, options = {}) {
@@ -282,9 +282,7 @@ export class GameManager {
           const reward = this.infiniteRewardFor(phase);
           if (reward) {
             progress.rewardsClaimed.push(phase);
-            this.save.scrap += reward.scrap || 0;
-            this.save.crystals += reward.crystals || 0;
-            this.save.technology += reward.technology || 0;
+            this.grantSupplies(reward.supplies || 0, false);
           }
         }
       } else {
@@ -298,11 +296,10 @@ export class GameManager {
     }
     if (victory && !this.run.developerRun) {
       const stars = this.run.baseHp > 50 ? 3 : this.run.baseHp > 20 ? 2 : 1;
-      this.levels.complete(this.run.level, stars);
-      this.save.scrap += GAME_CONFIG.economy.bossReward;
+      const reward = this.levels.complete(this.run.level, stars);
+      this.run.suppliesReward = reward.supplies;
       this.audio.ping(720, 0.24);
     } else if (!this.run.developerRun) {
-      this.save.scrap += Math.max(5, Math.floor(this.run.kills * 0.7));
       this.audio.ping(150, 0.18);
     } else {
       this.feedback('MODO DEV · progreso no guardado', 'info');
@@ -311,17 +308,23 @@ export class GameManager {
     this.ui.render();
   }
 
-  towerLevel(type) { return Math.max(1, Number(this.save.towerLevels?.[type]) || 1); }
+  towerLevel(type) { return Math.max(1, Math.min(GAME_CONFIG.economy.permanent.maxTowerLevel, Number(this.save.towerLevels?.[type]) || 1)); }
 
   towerUpgradeCost(type) {
-    return 2 + this.towerLevel(type) * 3;
+    const tower = GAME_CONFIG.towers[type];
+    const level = this.towerLevel(type);
+    if (!tower || level >= GAME_CONFIG.economy.permanent.maxTowerLevel) return null;
+    const pv = GAME_CONFIG.economy.permanent.levelCostsPv[level - 1];
+    return Math.ceil(pv / GAME_CONFIG.economy.permanent.gearValues[tower.rarityId]);
   }
 
   upgradePermanentTower(type) {
-    if (!GAME_CONFIG.towers[type]) return false;
+    if (!GAME_CONFIG.towers[type] || this.towerLevel(type) >= GAME_CONFIG.economy.permanent.maxTowerLevel) return false;
     const cost = this.towerUpgradeCost(type);
-    if (this.save.crystals < cost) return false;
-    this.save.crystals -= cost;
+    const rarity = GAME_CONFIG.towers[type].rarityId;
+    this.economy.ensurePermanentState();
+    if (this.save.gears[rarity] < cost) return false;
+    this.save.gears[rarity] -= cost;
     this.save.towerLevels[type] = this.towerLevel(type) + 1;
     SaveSystem.save(this.save);
     return true;
@@ -343,7 +346,16 @@ export class GameManager {
       this.save.crystals += amount;
       SaveSystem.save(this.save);
     }
-    this.feedback(`+${amount} NÚCLEO${amount === 1 ? '' : 'S'} DE JEFE`, 'special');
+    this.feedback(`+${amount} CRISTAL${amount === 1 ? '' : 'ES'}`, 'special');
+  }
+
+  grantSupplies(amount, persist = true) {
+    if (this.economy?.addSupplies) return this.economy.addSupplies(amount, { persist });
+    const value = Math.max(0, Math.floor(Number(amount) || 0));
+    this.save.supplies = Math.max(0, Math.floor(Number(this.save.supplies ?? this.save.scrap) || 0)) + value;
+    this.save.scrap = this.save.supplies;
+    if (persist) SaveSystem.save(this.save);
+    return value;
   }
 
   feedback(message, kind = 'info') {

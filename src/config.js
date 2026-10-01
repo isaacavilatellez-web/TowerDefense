@@ -11,7 +11,36 @@ export const GAME_CONFIG = {
     clickerUpgradeCosts: [110, 275, 500, 800, 1150, 1550],
     rewardLevelStep: 0.015,
     rewardLevelBonusCap: 0.35,
-    bossReward: 75,
+    // Economía permanente. Los PV sólo existen para convertir cofres y
+    // costes de nivel en engranajes; nunca se presentan en la interfaz.
+    permanent: {
+      gearValues: { common: 1, rare: 5, epic: 20, legendary: 100 },
+      gearLabels: { common: 'Gris', rare: 'Azul', epic: 'Morado', legendary: 'Dorado' },
+      gearColors: { common: '#aeb7b4', rare: '#66b8e8', epic: '#b879e3', legendary: '#f5cc58' },
+      levelCostsPv: [100, 200, 300, 500, 700, 1000, 1500, 2200, 3000],
+      maxTowerLevel: 10,
+      chests: [
+        { id: 'wood', name: 'Cofre de madera', price: 500, valueRange: [50, 100], color: '#b98a54', weights: { common: 65, rare: 28, epic: 6, legendary: 1 } },
+        { id: 'reinforced', name: 'Cofre reforzado', price: 1500, valueRange: [150, 300], color: '#9ea9ad', weights: { common: 40, rare: 40, epic: 17, legendary: 3 } },
+        { id: 'military', name: 'Cofre militar', price: 4000, valueRange: [400, 800], color: '#6b9c75', weights: { common: 15, rare: 40, epic: 35, legendary: 10 } },
+        { id: 'armored', name: 'Cofre blindado', price: 10000, valueRange: [800, 1500], color: '#7c91a8', weights: { common: 5, rare: 25, epic: 50, legendary: 20 } },
+        { id: 'commander', name: 'Cofre comandante', price: 25000, valueRange: [1500, 3000], color: '#d0a94e', weights: { common: 2, rare: 13, epic: 50, legendary: 35 } },
+      ],
+      directGearCrystalPrices: { common: 5, rare: 20, epic: 75, legendary: 300 },
+      levelRewards: [
+        { first: 150, repeat: 50 }, { first: 180, repeat: 60 }, { first: 210, repeat: 70 },
+        { first: 240, repeat: 80 }, { first: 300, repeat: 100 }, { first: 340, repeat: 110 },
+        { first: 380, repeat: 120 }, { first: 420, repeat: 130 }, { first: 460, repeat: 140 },
+        { first: 600, repeat: 180 },
+      ],
+      infiniteRewards: {
+        base: { start: 20, step: 5 },
+        milestones: { 5: 100, 10: 200, 20: 400 },
+      },
+    },
+    // Compatibilidad de partidas antiguas: los nombres nuevos son los únicos
+    // usados por la interfaz y la lógica nueva.
+    bossReward: 0,
     bossCurrency: { mini: 1, boss: 8 },
   },
   levels: {
@@ -72,19 +101,14 @@ export const GAME_CONFIG = {
     maxThreatPerPhase: 1.15,
     maxThreatCap: 42,
     dangerousEventCooldown: 4.5,
-    rewardPhases: {
-      first: { scrap: 35, crystals: 1 },
-      milestoneEvery: 5,
-      milestone: { scrap: 70, crystals: 2, technology: 1 },
-    },
   },
   towers: {
-    gunner: { id: 'gunner', name: 'Ametralladora', shortName: 'AMT', icon: '▦', rarity: 'Común', rarityColor: '#aeb7b4', color: '#aeb7b4', cost: 100, damage: 15, cooldown: 0.46, range: 130, type: 'Bala', splash: 0, description: 'Cadencia rápida y fiable.' },
-    cannon: { id: 'cannon', name: 'Cañón', shortName: 'CAÑ', icon: '◉', rarity: 'Rara', rarityColor: '#66b8e8', color: '#66b8e8', cost: 150, damage: 62, cooldown: 1.35, range: 175, type: 'Explosivo', splash: 56, description: 'Golpea grupos con explosiones.' },
-    flame: { id: 'flame', name: 'Lanzallamas', shortName: 'FLM', icon: '✦', rarity: 'Épica', rarityColor: '#c36be2', color: '#c36be2', cost: 210, damage: 14, cooldown: 0.22, range: 96, type: 'Fuego', splash: 38, description: 'Daño continuo en corto alcance.' },
-    sniper: { id: 'sniper', name: 'Congeladora', shortName: 'HIE', icon: '❄', rarity: 'Legendaria', rarityColor: '#f5cc58', color: '#f5cc58', cost: 280, damage: 150, cooldown: 2.05, range: 270, type: 'Hielo', splash: 0, slowFactor: 0.48, slowDuration: 1.6, description: 'Daño alto y ralentización visible.' },
-    mortar: { id: 'mortar', name: 'Misil', shortName: 'MIS', icon: '▲', rarity: 'Mítica', rarityColor: '#e86e63', color: '#e86e63', cost: 240, damage: 78, cooldown: 1.65, range: 205, type: 'Misil', splash: 72, description: 'Impactos de área con gran alcance.' },
-    tesla: { id: 'tesla', name: 'Torre Tesla', shortName: 'TES', icon: 'ϟ', rarity: 'Rara', rarityColor: '#66b8e8', color: '#66b8e8', cost: 200, damage: 30, cooldown: 0.7, range: 158, type: 'Cadena', splash: 0, chain: 2, chainRange: 105, chainDamage: 0.65, description: 'Descargas que saltan a 2 enemigos cercanos.' },
+    gunner: { id: 'gunner', name: 'Ametralladora', shortName: 'AMT', icon: '▦', rarity: 'Común', rarityId: 'common', rarityColor: '#aeb7b4', color: '#aeb7b4', cost: 100, damage: 15, cooldown: 0.46, range: 130, type: 'Bala', splash: 0, description: 'Cadencia rápida y fiable.' },
+    cannon: { id: 'cannon', name: 'Cañón', shortName: 'CAÑ', icon: '◉', rarity: 'Común', rarityId: 'common', rarityColor: '#aeb7b4', color: '#aeb7b4', cost: 150, damage: 62, cooldown: 1.35, range: 175, type: 'Explosivo', splash: 56, description: 'Golpea grupos con explosiones.' },
+    flame: { id: 'flame', name: 'Lanzallamas', shortName: 'FLM', icon: '✦', rarity: 'Rara', rarityId: 'rare', rarityColor: '#66b8e8', color: '#66b8e8', cost: 210, damage: 14, cooldown: 0.22, range: 96, type: 'Fuego', splash: 38, description: 'Daño continuo en corto alcance.' },
+    mortar: { id: 'mortar', name: 'Misiles', shortName: 'MIS', icon: '▲', rarity: 'Rara', rarityId: 'rare', rarityColor: '#66b8e8', color: '#66b8e8', cost: 240, damage: 78, cooldown: 1.65, range: 205, type: 'Misil', splash: 72, description: 'Impactos de área con gran alcance.' },
+    tesla: { id: 'tesla', name: 'Tesla', shortName: 'TES', icon: 'ϟ', rarity: 'Épica', rarityId: 'epic', rarityColor: '#b879e3', color: '#b879e3', cost: 200, damage: 30, cooldown: 0.7, range: 158, type: 'Cadena', splash: 0, chain: 2, chainRange: 105, chainDamage: 0.65, description: 'Descargas que saltan a 2 enemigos cercanos.' },
+    sniper: { id: 'sniper', name: 'Congeladora', shortName: 'HIE', icon: '❄', rarity: 'Legendaria', rarityId: 'legendary', rarityColor: '#f5cc58', color: '#f5cc58', cost: 280, damage: 150, cooldown: 2.05, range: 270, type: 'Hielo', splash: 0, slowFactor: 0.48, slowDuration: 1.6, freezeDuration: 0.35, description: 'Enorme alcance, ralentización y congelación.' },
   },
   enemies: {
     normal: { name: 'Caminante', hp: 95, speed: 0.026, reward: 10, color: '#899c8a', radius: 10 },

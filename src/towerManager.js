@@ -206,7 +206,7 @@ export class TowerManager {
     this.game.run.selectedTowerId = b.id;
     this.game.run.mergeableTowerIds = new Set();
     this.game.run.mergeFx = { x: destinationPosition.x, y: destinationPosition.y, from: sourcePosition, type: b.type, level: sourceLevel, resultId: b.id, until: performance.now() + 620, started: performance.now() };
-    this.game.feedback(`FUSIÓN · NIVEL ${b.level}`, 'merge');
+    this.game.feedback(`FUSIÓN · EVOLUCIÓN ${b.level}`, 'merge');
     return true;
   }
 
@@ -229,7 +229,7 @@ export class TowerManager {
     run.mergeableTowerIds = new Set();
     run.selectedTowerId = target.id;
     run.mergeFx = { x: target.x, y: target.y, from: { x: target.x, y: target.y }, type: target.type, level: sourceLevel, resultId: target.id, until: performance.now() + 620, started: performance.now() };
-    this.game.feedback(`FUSIÓN DIRECTA · NIVEL ${target.level}`, 'merge');
+    this.game.feedback(`FUSIÓN DIRECTA · EVOLUCIÓN ${target.level}`, 'merge');
     return true;
   }
 
@@ -261,6 +261,6 @@ export class TowerManager {
 
   fire(tower, target, stats) {
     const position = enemyPosition(target);
-    this.game.run.projectiles.push({ from: { x: tower.x, y: tower.y }, to: position, targetId: target.id, towerType: tower.type, damage: stats.damage, splash: stats.splash, chain: stats.chain, chainRange: stats.chainRange, chainDamage: stats.chainDamage, slowFactor: stats.slowFactor, slowDuration: stats.slowDuration, life: 0.16, maxLife: 0.16 });
+    this.game.run.projectiles.push({ from: { x: tower.x, y: tower.y }, to: position, targetId: target.id, towerType: tower.type, damage: stats.damage, splash: stats.splash, chain: stats.chain, chainRange: stats.chainRange, chainDamage: stats.chainDamage, slowFactor: stats.slowFactor, slowDuration: stats.slowDuration, freezeDuration: stats.freezeDuration, life: 0.16, maxLife: 0.16 });
   }
 }

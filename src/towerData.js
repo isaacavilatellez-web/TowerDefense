@@ -2,8 +2,9 @@ import { GAME_CONFIG } from './config.js';
 
 export function getTowerStats(type, level = 1, buffs = {}, permanentLevel = 1) {
   const base = GAME_CONFIG.towers[type];
+  if (!base) return null;
   const evolution = Math.max(1, Math.min(5, Number(level) || 1));
-  const permanent = Math.max(1, Number(permanentLevel) || 1);
+  const permanent = Math.max(1, Math.min(GAME_CONFIG.economy.permanent.maxTowerLevel, Number(permanentLevel) || 1));
   const evolutionMultiplier = 1 + (evolution - 1) * 0.55;
   const permanentMultiplier = 1 + Math.min(2.5, (permanent - 1) * 0.18);
   const damageBuff = type === 'gunner' ? (1 + (buffs.gunner_damage || 0)) : 1;
@@ -22,6 +23,7 @@ export function getTowerStats(type, level = 1, buffs = {}, permanentLevel = 1) {
     chainDamage: base.chainDamage || 0,
     slowFactor: base.slowFactor || 1,
     slowDuration: base.slowDuration || 0,
+    freezeDuration: base.freezeDuration || 0,
   };
 }
 

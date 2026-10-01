@@ -21,4 +21,12 @@ Abre la URL que muestra Vite. También se puede generar una build estática con 
 - `uiManager.js`: mapa, HUD, Canvas, modal de mejoras y resultados.
 - `config.js`: balance centralizado.
 
+## Economía permanente
+
+La economía del menú está separada de las monedas temporales de cada partida:
+
+`partidas → Suministros → cofres → Engranajes → Nivel permanente de defensas`
+
+Los niveles permanentes (1–10) usan engranajes según la rareza de cada defensa. Las fusiones dentro del campo siguen siendo evoluciones temporales (1–5). Los valores de engranajes, cofres, pesos, recompensas, niveles e intercambio directo con Cristales están centralizados en `src/config.js`; la lógica de reparto exacto de cofres está en `src/economyManager.js`.
+
 La primera versión prioriza el bucle completo y deja puntos claros para añadir nuevos mundos, enemigos, torres, jefes, habilidades, audio y contenido permanente.

@@ -32,6 +32,7 @@ export function createEnemy(kind, level, path, id, overrides = {}) {
     regen: base.regen || 0,
     slowFactor: 1,
     slowTimer: 0,
+    freezeTimer: 0,
     pulse: 0,
     damageCounted: 0,
   };

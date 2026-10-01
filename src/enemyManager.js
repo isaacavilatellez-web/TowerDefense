@@ -30,6 +30,11 @@ export class EnemyManager {
         enemy.slowTimer -= seconds;
         if (enemy.slowTimer <= 0) enemy.slowFactor = 1;
       }
+      if (enemy.freezeTimer > 0) {
+        enemy.freezeTimer -= seconds;
+        enemy.pulse += seconds;
+        continue;
+      }
       enemy.pulse += seconds;
       enemy.progress += enemy.speed * (enemy.slowFactor || 1) * seconds;
       if (enemy.progress >= 1) {
@@ -54,12 +59,14 @@ export class EnemyManager {
     const incoming = Math.max(0, Number(damage) || 0);
     const actual = this.damageEnemy(target, incoming);
     this.applySlow(target, effect.slowFactor, effect.slowDuration);
+    this.applyFreeze(target, effect.freezeDuration);
     if (splash > 0) {
       for (const enemy of run.enemies) {
         if (!enemy.alive || enemy.id === target.id) continue;
         const position = enemyPosition(enemy);
         if (Math.hypot(position.x - origin.x, position.y - origin.y) <= splash) {
           this.damageEnemy(enemy, actual * 0.45);
+          this.applyFreeze(enemy, effect.freezeDuration);
           if (enemy.hp <= 0) this.kill(enemy);
         }
       }
@@ -72,6 +79,11 @@ export class EnemyManager {
     if (!enemy || !slowDuration || !slowFactor || slowFactor >= 1) return;
     enemy.slowFactor = Math.min(enemy.slowFactor || 1, slowFactor);
     enemy.slowTimer = Math.max(enemy.slowTimer || 0, slowDuration);
+  }
+
+  applyFreeze(enemy, freezeDuration) {
+    if (!enemy || !freezeDuration) return;
+    enemy.freezeTimer = Math.max(enemy.freezeTimer || 0, freezeDuration);
   }
 
   chainHit(source, damage, jumps, range, effect) {
@@ -88,6 +100,7 @@ export class EnemyManager {
       hitIds.add(next.id);
       this.damageEnemy(next, damage);
       this.applySlow(next, effect.slowFactor, effect.slowDuration);
+      this.applyFreeze(next, effect.freezeDuration);
       if (next.hp <= 0) this.kill(next);
       current = next;
     }
