@@ -1170,21 +1170,17 @@ body { overflow:hidden; }
 
 /* Sprites de economía: siempre conservan su proporción y no añaden fondos. */
 .resource-icon-image { display:grid; place-items:center; }
-.resource-icon-image .resource-sprite { width:1.45rem; height:1.45rem; object-fit:contain; display:block; filter:drop-shadow(0 2px 2px rgba(10,36,24,.24)); }
-.inline-resource-icon { display:inline-grid; width:1.1em; height:1.1em; margin-right:3px; vertical-align:-.16em; place-items:center; }
+.resource-icon-image .resource-sprite { width:30px; height:30px; object-fit:contain; display:block; filter:drop-shadow(0 2px 2px rgba(10,36,24,.24)); }
+.inline-resource-icon { display:inline-grid; width:24px; height:24px; margin-right:5px; vertical-align:-.35em; place-items:center; }
 .inline-resource-icon .resource-sprite { width:100%; height:100%; object-fit:contain; display:block; }
-.inline-resource-sprite { width:1.1em; height:1.1em; object-fit:contain; display:inline-block; vertical-align:-.15em; filter:drop-shadow(0 2px 1px rgba(10,36,24,.2)); }
-.gear-chip-art { width:26px; height:26px; display:grid; place-items:center; }
+.inline-resource-sprite { width:24px; height:24px; object-fit:contain; display:inline-block; vertical-align:-.35em; filter:drop-shadow(0 2px 1px rgba(10,36,24,.2)); }
+.gear-chip-art { width:30px; height:30px; display:grid; place-items:center; }
 .gear-chip-art .gear-sprite { width:100%; height:100%; object-fit:contain; display:block; filter:drop-shadow(0 2px 2px rgba(10,36,24,.24)); }
-.gear-big { min-height:48px; display:grid; place-items:center; }
-.gear-big .gear-sprite { width:48px; height:48px; object-fit:contain; display:block; filter:drop-shadow(0 5px 3px rgba(8,35,22,.25)); }
-.inline-gear-sprite { width:1.3em; height:1.3em; object-fit:contain; display:inline-block; vertical-align:-.3em; margin-right:2px; filter:drop-shadow(0 2px 1px rgba(8,35,22,.22)); }
+.gear-big { min-height:56px; display:grid; place-items:center; }
+.gear-big .gear-sprite { width:56px; height:56px; object-fit:contain; display:block; filter:drop-shadow(0 5px 3px rgba(8,35,22,.25)); }
+.inline-gear-sprite { width:24px; height:24px; object-fit:contain; display:inline-block; vertical-align:-.4em; margin-right:3px; filter:drop-shadow(0 2px 1px rgba(8,35,22,.22)); }
 .chest-visual .chest-sprite { width:100%; height:100%; object-fit:contain; display:block; filter:drop-shadow(0 11px 9px rgba(3,27,18,.3)); }
-.chest-card[data-chest="wood"] .chest-visual { width:91px; height:84px; }
-.chest-card[data-chest="reinforced"] .chest-visual { width:96px; height:86px; }
-.chest-card[data-chest="military"] .chest-visual { width:96px; height:88px; }
-.chest-card[data-chest="armored"] .chest-visual { width:96px; height:90px; }
-.chest-card[data-chest="commander"] .chest-visual { width:88px; height:98px; margin-top:10px; margin-bottom:7px; }
+.chest-card .chest-visual { width:108px; height:112px; margin:10px auto 9px; }
 .reward-reveal { display:flex; justify-content:center; align-items:center; gap:7px; flex-wrap:wrap; }
 .reward-item { display:inline-flex; align-items:center; gap:3px; white-space:nowrap; }
 .reward-gear-sprite { width:1.35em; height:1.35em; object-fit:contain; display:inline-block; vertical-align:-.3em; filter:drop-shadow(0 2px 1px rgba(8,35,22,.22)); }
@@ -1192,15 +1188,13 @@ body { overflow:hidden; }
 .map-screen .map-topbar .resource-icon-image .resource-sprite { width:14px; height:14px; }
 
 @media (max-width:600px) {
-  .resource-icon-image .resource-sprite { width:1.15rem; height:1.15rem; }
-  .map-screen .map-topbar .resource-icon-image .resource-sprite { width:11px; height:11px; }
-  .gear-chip-art { width:22px; height:22px; }
-  .gear-big .gear-sprite { width:42px; height:42px; }
-  .chest-card[data-chest="wood"] .chest-visual { width:70px; height:65px; }
-  .chest-card[data-chest="reinforced"] .chest-visual { width:74px; height:66px; }
-  .chest-card[data-chest="military"] .chest-visual { width:74px; height:68px; }
-  .chest-card[data-chest="armored"] .chest-visual { width:74px; height:70px; }
-  .chest-card[data-chest="commander"] .chest-visual { width:68px; height:75px; margin-top:5px; margin-bottom:3px; }
+  .resource-icon-image .resource-sprite { width:28px; height:28px; }
+  .map-screen .map-topbar .resource-icon-image .resource-sprite { width:28px; height:28px; }
+  .gear-chip-art { width:28px; height:28px; }
+  .gear-big .gear-sprite { width:48px; height:48px; }
+  .inline-resource-icon { width:22px; height:22px; }
+  .inline-resource-sprite, .inline-gear-sprite { width:22px; height:22px; }
+  .chest-card .chest-visual { width:84px; height:88px; margin-top:6px; margin-bottom:5px; }
 }
 
 /*
@@ -1377,4 +1371,111 @@ body { overflow:hidden; }
 
 @media (max-width:900px) {
   .battle-screen .clicker-zone { align-self:stretch; }
+}
+
+/* Colección: el arte tiene una caja propia y nunca invade el texto de la tarjeta. */
+.screen-shell .defense-card {
+  min-height:356px;
+  overflow:hidden;
+}
+.screen-shell .defense-card .defense-art {
+  flex:0 0 124px;
+  width:100%;
+  height:124px;
+  min-height:124px;
+  margin:7px auto 10px;
+  padding:6px;
+  overflow:hidden;
+  display:grid;
+  place-items:center;
+}
+.screen-shell .defense-card .defense-art img {
+  width:100%;
+  height:100%;
+  max-width:100%;
+  max-height:100%;
+  object-fit:contain;
+  display:block;
+}
+.screen-shell .defense-card h3 {
+  min-height:2.2em;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  line-height:1;
+}
+.screen-shell .defense-card .defense-meta {
+  min-height:29px;
+  align-items:center;
+  gap:8px;
+}
+.screen-shell .defense-card .defense-meta b {
+  display:inline-flex;
+  align-items:center;
+  min-width:0;
+  text-align:right;
+}
+.screen-shell .defense-card .stat-bars {
+  width:100%;
+  margin-top:auto;
+}
+.screen-shell .defense-detail .detail-art img {
+  width:100%;
+  height:100%;
+  object-fit:contain;
+}
+
+/* Contadores compactos: el objeto visible mide 26–32 px también en móvil. */
+.screen-shell .topbar .brand-lockup,
+.map-screen .map-topbar .brand-lockup { min-width:0; }
+.screen-shell .topbar .resource-stack,
+.map-screen .map-topbar .resource-stack {
+  flex:0 0 auto;
+  max-width:52%;
+}
+.screen-shell .topbar .resource,
+.map-screen .map-topbar .resource {
+  grid-template-columns:28px minmax(0,1fr);
+  min-width:0;
+  gap:0 4px;
+}
+.screen-shell .topbar .resource small,
+.map-screen .map-topbar .resource small {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.screen-shell .topbar .resource strong,
+.map-screen .map-topbar .resource strong { min-width:0; }
+.map-screen .map-topbar .resource-icon-image .resource-sprite { width:30px; height:30px; }
+
+@media (max-width:600px) {
+  .app-shell.screen-shell { padding-bottom:calc(148px + env(safe-area-inset-bottom)); }
+  .screen-shell .topbar .resource-stack,
+  .map-screen .map-topbar .resource-stack { max-width:54%; }
+  .screen-shell .topbar .resource,
+  .map-screen .map-topbar .resource {
+    padding:6px 5px;
+    grid-template-columns:28px minmax(0,1fr);
+  }
+  .screen-shell .topbar .resource strong,
+  .map-screen .map-topbar .resource strong { font-size:.68rem; }
+  .screen-shell .topbar .resource small,
+  .map-screen .map-topbar .resource small { font-size:.39rem; }
+  .screen-shell .defense-card {
+    min-height:326px;
+    padding:13px 9px;
+  }
+  .screen-shell .defense-card .defense-art {
+    flex-basis:108px;
+    height:108px;
+    min-height:108px;
+    margin:5px auto 8px;
+    padding:4px;
+  }
+  .screen-shell .defense-card h3 { font-size:1.05rem; }
+  .screen-shell .defense-card .defense-meta { margin-bottom:10px; }
+  .screen-shell .chest-timer .inline-resource-icon,
+  .screen-shell .buy-gear .inline-resource-icon { width:22px; height:22px; }
 }
