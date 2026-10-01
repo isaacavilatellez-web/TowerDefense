@@ -1638,10 +1638,20 @@ body { overflow:hidden; }
   }
 
   .screen-shell .defense-card .defense-image {
-    height:clamp(104px, 29vw, 124px);
-    min-height:104px;
-    margin:8px 0 9px;
+    height:clamp(136px, 33vw, 150px);
+    min-height:136px;
+    margin:10px 0 12px;
     padding:9px;
+  }
+
+  .screen-shell .defense-card .defense-image img {
+    width:auto;
+    height:clamp(90px, calc(29vw - 18px), 107px);
+    max-width:100%;
+    max-height:100%;
+    object-fit:contain;
+    align-self:center;
+    justify-self:center;
   }
 
   .screen-shell .defense-card .defense-name {
@@ -1654,5 +1664,9 @@ body { overflow:hidden; }
 
   .screen-shell .defense-card .stat-bars {
     margin-top:8px;
+  }
+
+  .app-shell.screen-shell {
+    padding-bottom:calc(176px + env(safe-area-inset-bottom));
   }
 }
