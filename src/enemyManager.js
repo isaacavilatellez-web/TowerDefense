@@ -1,4 +1,4 @@
-import { createEnemy, enemyPosition, canonicalEnemyKind } from './enemyData.js';
+import { createEnemy, enemyPosition, canonicalEnemyKind, normalizeEnemyCombatState } from './enemyData.js';
 
 export class EnemyManager {
   constructor(game) { this.game = game; }
@@ -23,6 +23,7 @@ export class EnemyManager {
     const run = this.game.run;
     for (const enemy of run.enemies) {
       if (!enemy.alive) continue;
+      normalizeEnemyCombatState(enemy);
       if (enemy.hp <= 0) {
         this.kill(enemy);
         continue;
@@ -71,11 +72,16 @@ export class EnemyManager {
 
   hit(enemyId, damage, splash, origin, effect = {}) {
     const run = this.game.run;
-    const target = run.enemies.find((enemy) => enemy.id === enemyId && enemy.alive);
+    const target = run.enemies.find((enemy) => enemy.alive && (enemy.id === enemyId || String(enemy.id) === String(enemyId)));
     if (!target) return;
-    const incoming = Math.max(0, Number(damage) || 0);
-    if (!origin) origin = enemyPosition(target);
-    const actual = this.damageEnemy(target, incoming);
+    normalizeEnemyCombatState(target);
+    const damageValue = Number(damage);
+    const incoming = Number.isFinite(damageValue) ? Math.max(0, damageValue) : 0;
+    if (!origin || !Number.isFinite(origin.x) || !Number.isFinite(origin.y)) origin = enemyPosition(target);
+    const primary = this.damageEnemyResult(target, incoming, { ...effect, source: effect.source || 'impact' });
+    // Una barrera puede absorber todo el impacto directo, pero no debe hacer
+    // desaparecer una explosión, una cadena o una zona de fuego asociada.
+    const splashBase = primary.mitigated;
     this.applySlow(target, effect.slowFactor, effect.slowDuration);
     this.applyFreeze(target, effect.freezeDuration);
     this.applyBurn(target, effect.burnDuration, incoming * .18, effect.regenReduction);
@@ -85,7 +91,7 @@ export class EnemyManager {
         if (!enemy.alive || enemy.id === target.id) continue;
         const position = enemyPosition(enemy);
         if (Math.hypot(position.x - origin.x, position.y - origin.y) <= splash) {
-          this.damageEnemy(enemy, actual * (effect.edgeFalloff || .45));
+          this.damageEnemy(enemy, splashBase * (effect.edgeFalloff || .45), { ...effect, source: effect.source || 'splash' });
           this.applyFreeze(enemy, effect.freezeDuration);
           this.applyBurn(enemy, effect.burnDuration, incoming * .12, effect.regenReduction);
           if (enemy.hp <= 0) this.kill(enemy);
@@ -101,7 +107,7 @@ export class EnemyManager {
         const length = Math.hypot(offset.x, offset.y) || 1;
         const dot = (direction.x * offset.x + direction.y * offset.y) / (directionLength * length);
         if (length <= (effect.range || splash || 100) && Math.acos(Math.max(-1, Math.min(1, dot))) <= effect.coneAngle / 2) {
-          this.damageEnemy(enemy, incoming * .72, effect);
+          this.damageEnemy(enemy, incoming * .72, { ...effect, source: effect.source || 'cone' });
           this.applyBurn(enemy, effect.burnDuration, incoming * .18, effect.regenReduction);
           if (enemy.hp <= 0) this.kill(enemy);
         }
@@ -177,8 +183,9 @@ export class EnemyManager {
       if (!next) break;
       hitIds.add(next.id);
       const jumpIndex = hitIds.size - 1;
-      const chainDamage = effect.chainDamages?.[jumpIndex] ?? effect.damage * Math.pow(effect.chainFalloff || .65, jumpIndex);
-      this.damageEnemy(next, chainDamage, effect);
+      const fallbackDamage = Number.isFinite(Number(effect.damage)) ? Number(effect.damage) : 0;
+      const chainDamage = effect.chainDamages?.[jumpIndex] ?? fallbackDamage * Math.pow(effect.chainFalloff || .65, jumpIndex);
+      this.damageEnemy(next, chainDamage, { ...effect, source: effect.source || 'chain' });
       this.applySlow(next, effect.electricSlow || effect.slowFactor, effect.electricSlowDuration || effect.slowDuration);
       this.applyFreeze(next, effect.freezeDuration);
       if (next.hp <= 0) this.kill(next);
@@ -187,16 +194,44 @@ export class EnemyManager {
   }
 
   damageEnemy(enemy, damage, effect = {}) {
-    if (!enemy?.alive) return 0;
-    const incoming = Math.max(0, Number(damage) || 0);
-    const mitigated = enemy.armorReduction ? incoming * (1 - enemy.armorReduction) : incoming;
-    const amplified = enemy.vulnerabilityTimer > 0 && enemy.vulnerability > 0 ? mitigated * (1 + Math.min(.1, enemy.vulnerability)) : mitigated;
-    const healthDamage = Math.min(Math.max(0, enemy.hp), amplified);
-    enemy.hp = Math.max(0, enemy.hp - healthDamage);
+    return this.damageEnemyResult(enemy, damage, effect).healthDamage;
+  }
+
+  damageEnemyResult(enemy, damage, effect = {}) {
+    if (!enemy?.alive) return { incoming: 0, mitigated: 0, shieldDamage: 0, healthDamage: 0, resistanceReduction: 0, armorReduction: 0 };
+    normalizeEnemyCombatState(enemy);
+    const incoming = Math.max(0, Number.isFinite(Number(damage)) ? Number(damage) : 0);
+    const armorReduction = enemy.armorReduction || 0;
+    const resistanceReduction = enemy.damageResistance || 0;
+    const reduced = incoming * (1 - armorReduction) * (1 - resistanceReduction);
+    const amplified = enemy.vulnerabilityTimer > 0 && enemy.vulnerability > 0
+      ? reduced * (1 + Math.min(.1, Number(enemy.vulnerability) || 0))
+      : reduced;
+    const mitigated = Math.max(0, Number.isFinite(amplified) ? amplified : 0);
+    const shieldBefore = Math.max(0, Number(enemy.shield) || 0);
+    const shieldDamage = Math.min(shieldBefore, mitigated);
+    enemy.shield = Math.max(0, shieldBefore - shieldDamage);
+    const healthBefore = Math.max(0, Number(enemy.hp) || 0);
+    const healthDamage = Math.min(healthBefore, Math.max(0, mitigated - shieldDamage));
+    enemy.hp = Math.max(0, healthBefore - healthDamage);
+    const impact = {
+      incoming,
+      mitigated,
+      shieldDamage,
+      healthDamage,
+      armorReduction,
+      resistanceReduction,
+      remainingShield: enemy.shield,
+      source: effect.source || 'impact',
+      at: performance.now(),
+    };
+    enemy.lastImpact = impact;
     if (healthDamage > 0 && this.game.run.mode === 'infinite') {
-      this.game.run.damageDone = Math.min(this.game.run.damageTarget, this.game.run.damageDone + healthDamage);
+      const target = Number.isFinite(this.game.run.damageTarget) ? this.game.run.damageTarget : Number.MAX_SAFE_INTEGER;
+      const current = Number.isFinite(this.game.run.damageDone) ? this.game.run.damageDone : 0;
+      this.game.run.damageDone = Math.min(target, current + healthDamage);
     }
-    return healthDamage;
+    return impact;
   }
 
   kill(enemy) {

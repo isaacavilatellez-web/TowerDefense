@@ -1780,3 +1780,99 @@ body { overflow:hidden; }
   .defense-resource-counter .gear-sprite { width:28px; height:28px; }
   .defense-resource-counter strong { font-size:.85rem; }
 }
+
+/* Franja de defensa seleccionada: sólo estadísticas y selector, sin reservar
+ * una fila dentro del arsenal. La posición absoluta la mantiene sobre los
+ * controles inferiores y permite seguir tocando cualquier otra superficie. */
+.battle-screen .tower-panel {
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:calc(100% + 6px);
+  z-index:40;
+  max-height:none;
+  overflow:visible;
+  padding:0;
+  border:1px solid rgba(210,236,235,.24);
+  border-radius:10px;
+  color:#efffff;
+  background:rgba(8,22,24,.82);
+  box-shadow:0 7px 18px rgba(0,0,0,.2);
+  backdrop-filter:blur(8px);
+}
+.battle-screen .tower-panel:empty { display:none; }
+.battle-screen .selected-tower {
+  min-height:48px;
+  padding:4px 6px;
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(120px,1.45fr);
+  align-items:stretch;
+  gap:4px;
+}
+.battle-screen .selected-stats {
+  grid-column:1 / span 3;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:4px;
+  margin:0;
+}
+.battle-screen .selected-stats span {
+  min-width:0;
+  padding:3px 5px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:4px;
+  border:1px solid rgba(210,236,235,.12);
+  border-radius:6px;
+  background:rgba(255,255,255,.06);
+}
+.battle-screen .selected-stats small,
+.battle-screen .priority-row,
+.battle-screen .priority-row label {
+  color:rgba(239,255,255,.68);
+  font-size:.48rem;
+  font-weight:900;
+  line-height:1;
+  white-space:nowrap;
+}
+.battle-screen .selected-stats b { color:#f5ffff; font-size:.7rem; line-height:1; white-space:nowrap; }
+.battle-screen .priority-row {
+  grid-column:4;
+  min-width:0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:5px;
+  padding:0 2px 0 4px;
+}
+.battle-screen .priority-select {
+  min-width:0;
+  width:100%;
+  min-height:34px;
+  padding:4px 5px;
+  border:1px solid rgba(210,236,235,.24);
+  border-radius:6px;
+  color:#f5ffff;
+  background:rgba(4,13,16,.9);
+  font-size:.5rem;
+  font-weight:900;
+}
+
+@media (max-width:390px) {
+  .battle-screen .selected-tower {
+    min-height:54px;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    grid-template-rows:24px 28px;
+    gap:3px;
+    padding:4px 5px;
+  }
+  .battle-screen .selected-stats { grid-column:1 / -1; grid-row:1; }
+  .battle-screen .selected-stats span { padding:2px 4px; }
+  .battle-screen .selected-stats small,
+  .battle-screen .priority-row,
+  .battle-screen .priority-row label { font-size:.43rem; }
+  .battle-screen .selected-stats b { font-size:.62rem; }
+  .battle-screen .priority-row { grid-column:1 / -1; grid-row:2; padding:0; }
+  .battle-screen .priority-select { min-height:27px; font-size:.47rem; }
+}

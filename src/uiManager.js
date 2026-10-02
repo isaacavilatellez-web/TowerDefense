@@ -398,6 +398,14 @@ export class UIManager {
     if (enemy.slowTimer > 0) states.push(`RALENTIZADO ${Math.round((1 - enemy.slowFactor) * 100)}%`);
     if (enemy.burn) states.push(`QUEMADO ${enemy.burn.duration.toFixed(1)}s`);
     if (enemy.regenSuppressed > 0) states.push('REGEN BLOQUEADA');
+    if (enemy.maxShield > 0) states.push(`ESCUDO ${Math.ceil(enemy.shield)} / ${Math.ceil(enemy.maxShield)}`);
+    if (enemy.lastImpact && performance.now() - enemy.lastImpact.at < 1200) {
+      const impact = enemy.lastImpact;
+      if (impact.shieldDamage > 0) states.push(`ESCUDO -${impact.shieldDamage.toFixed(1)}`);
+      if (impact.healthDamage > 0) states.push(`VIDA -${impact.healthDamage.toFixed(1)}`);
+      if (impact.armorReduction > 0 || impact.resistanceReduction > 0) states.push(`MITIGADO ${Math.round((1 - (1 - impact.armorReduction) * (1 - impact.resistanceReduction)) * 100)}%`);
+      if (impact.healthDamage === 0 && impact.shieldDamage === 0 && impact.incoming > 0) states.push('SIN DAÑO · IMPACTO NO APLICADO');
+    }
     return states.join(' · ') || 'Sin estados';
   }
 
@@ -675,7 +683,7 @@ export class UIManager {
     }
     const tower = run.towers.find((item) => Math.hypot(item.x - point.x, item.y - point.y) < 30);
     if (!tower) { this.game.towers.select(null); run.mergeTargetId = null; return; }
-    run.drag = { mode: 'merge', towerId: tower.id, pointerId: event.pointerId, start: point, point, moved: false, ready: false, holdTimer: window.setTimeout(() => { if (run.drag?.towerId === tower.id) run.drag.ready = true; }, 360) };
+    run.drag = { mode: 'merge', towerId: tower.id, pointerId: event.pointerId, start: point, startClientX: event.clientX, startClientY: event.clientY, point, moved: false, ready: false, holdTimer: window.setTimeout(() => { if (run.drag?.towerId === tower.id) run.drag.ready = true; }, 360) };
     run.mergeTargetId = null;
     this.game.towers.select(tower);
   }
@@ -731,10 +739,15 @@ export class UIManager {
       this.updateShopDragPreview(event);
       return;
     }
+    if (!drag.moved && Number.isFinite(drag.startClientX) && Math.hypot(event.clientX - drag.startClientX, event.clientY - drag.startClientY) > 10) {
+      drag.moved = true;
+      // El cierre ocurre al iniciar el gesto, incluso antes de que se cumpla
+      // la pulsación larga necesaria para una fusión.
+      this.game.towers.select(null);
+    }
     if (!drag.ready) return;
     if (!this.pointInsideCanvas(event)) return;
     drag.point = this.canvasPoint(event);
-    if (!drag.moved && Math.hypot(drag.point.x - drag.start.x, drag.point.y - drag.start.y) > 10) drag.moved = true;
     if (!drag.moved) return;
     const candidate = run.towers.find((tower) => tower.id !== drag.towerId && Math.hypot(tower.x - drag.point.x, tower.y - drag.point.y) < 30);
     const source = run.towers.find((tower) => tower.id === drag.towerId);
@@ -841,15 +854,10 @@ export class UIManager {
     const selected = run.towers.find((tower) => tower.id === run.selectedTowerId);
     if (selected) {
       const stats = getTowerStats(selected.type, selected.level, run.buffs, this.game.towerLevel(selected.type));
-      const canMerge = selected.level < 5 && run.towers.some((tower) => tower.id !== selected.id && tower.type === selected.type && tower.level === selected.level);
-      const sameGradeCount = run.towers.filter((tower) => tower.type === selected.type && tower.level === selected.level).length;
-      const panelKey = `${selected.id}:${selected.level}:${sameGradeCount}:${canMerge}:${selected.priority}:${JSON.stringify(run.buffs)}`;
+      const panelKey = `${selected.id}:${selected.level}:${selected.priority}:${JSON.stringify(run.buffs)}`;
       if (panel && panelKey !== this.selectedPanelKey) {
-        panel.innerHTML = `<div class="selected-tower"><div class="selected-heading"><span class="tower-icon tower-art" style="--tower-color:${stats.color}">${this.towerArt(selected.type)}</span><div><span class="eyebrow">EVOLUCIÓN DE PARTIDA</span><h3>${stats.name} <b>EVOLUCIÓN ${selected.level}</b></h3><small>NIVEL PERMANENTE ${this.game.towerLevel(selected.type)} · CAMPO ${sameGradeCount}/2</small></div><button class="panel-close" aria-label="Cerrar información">×</button></div><div class="selected-stats"><span><small>DAÑO</small><b>${stats.displayDamage}</b></span><span><small>CADENCIA</small><b>${stats.cooldown.toFixed(2)}s</b></span><span><small>ALCANCE</small><b>${Math.round(stats.range)}</b></span></div><div class="tower-action-row"><button data-action="permanent">NIVEL MENÚ</button><button data-action="sell">VENDER</button><button data-action="ability">HABILIDAD</button></div><div class="priority-row"><span>OBJETIVO</span><select class="priority-select"><option value="first">PRIMERO</option><option value="last">ÚLTIMO</option><option value="strong">FUERTE</option><option value="weak">DÉBIL</option><option value="boss">JEFE</option></select></div><button class="merge-button" ${canMerge ? '' : 'disabled'}>EVOLUCIONAR <span>${canMerge ? `◆ LISTA · ${sameGradeCount}/2` : `${sameGradeCount}/2 · —`}</span></button></div>`;
-        panel.querySelector('.panel-close').addEventListener('click', () => this.game.towers.select(null));
+        panel.innerHTML = `<div class="selected-tower"><div class="selected-stats"><span><small>DAÑO</small><b>${stats.displayDamage}</b></span><span><small>CADENCIA</small><b>${stats.cooldown.toFixed(2)}s</b></span><span><small>ALCANCE</small><b>${Math.round(stats.range)}</b></span></div><div class="priority-row"><label for="selected-priority">OBJETIVO</label><select id="selected-priority" class="priority-select"><option value="first">PRIMERO</option><option value="last">ÚLTIMO</option><option value="strong">FUERTE</option><option value="weak">DÉBIL</option><option value="boss">JEFE</option></select></div></div>`;
         panel.querySelector('.priority-select').value = selected.priority; panel.querySelector('.priority-select').addEventListener('change', (event) => { selected.priority = event.target.value; });
-        panel.querySelector('.merge-button').addEventListener('click', () => { if (canMerge) this.game.feedback('Mantén pulsada la defensa y arrástrala sobre otra igual', 'merge'); });
-        panel.querySelectorAll('[data-action]').forEach((button) => button.addEventListener('click', () => this.game.feedback(button.dataset.action === 'permanent' ? 'Los niveles permanentes se mejoran desde DEFENSAS' : `${button.textContent} disponible en el árbol de progresión`, 'info')));
         this.selectedPanelKey = panelKey;
       }
     } else if (panel && this.selectedPanelKey) {
@@ -982,7 +990,25 @@ export class UIManager {
       if (enemy.burn) { ctx.fillStyle = '#ffad45'; ctx.beginPath(); ctx.arc(p.x + enemy.radius * .7, p.y - enemy.radius * .7, 4 + Math.sin(enemy.pulse * 12), 0, Math.PI * 2); ctx.fill(); }
       if (enemy.regenRate && enemy.regenSuppressed <= 0) { ctx.fillStyle = '#a8e78e'; ctx.font = '900 12px Arial'; ctx.fillText('+', p.x - enemy.radius - 5, p.y - enemy.radius - 3); }
       if (enemy.regenSuppressed > 0) { ctx.fillStyle = '#fff0b0'; ctx.font = '900 9px Arial'; ctx.fillText('×REGEN', p.x, p.y + enemy.radius + 18); }
-      ctx.fillStyle = 'rgba(31, 48, 26, .7)'; ctx.fillRect(p.x - enemy.radius, p.y - enemy.radius - 8, enemy.radius * 2, 3); ctx.fillStyle = enemy.kind === 'boss' ? '#b9342c' : '#d8e78d'; ctx.fillRect(p.x - enemy.radius, p.y - enemy.radius - 8, enemy.radius * 2 * Math.max(0, enemy.hp / enemy.maxHp), 3);
+      const maxHp = Number.isFinite(Number(enemy.maxHp)) && enemy.maxHp > 0 ? enemy.maxHp : 1;
+      const hp = Math.max(0, Math.min(maxHp, Number(enemy.hp) || 0));
+      ctx.fillStyle = 'rgba(31, 48, 26, .7)'; ctx.fillRect(p.x - enemy.radius, p.y - enemy.radius - 8, enemy.radius * 2, 3); ctx.fillStyle = enemy.kind === 'boss' ? '#b9342c' : '#d8e78d'; ctx.fillRect(p.x - enemy.radius, p.y - enemy.radius - 8, enemy.radius * 2 * (hp / maxHp), 3);
+      if (enemy.maxShield > 0) {
+        const shield = Math.max(0, Math.min(enemy.maxShield, Number(enemy.shield) || 0));
+        ctx.fillStyle = 'rgba(26, 57, 75, .8)'; ctx.fillRect(p.x - enemy.radius, p.y - enemy.radius - 4, enemy.radius * 2, 2);
+        ctx.fillStyle = '#8fe7ff'; ctx.fillRect(p.x - enemy.radius, p.y - enemy.radius - 4, enemy.radius * 2 * (shield / enemy.maxShield), 2);
+      }
+      if (enemy.lastImpact && performance.now() - enemy.lastImpact.at < 1000) {
+        const impact = enemy.lastImpact;
+        const parts = [];
+        if (impact.healthDamage > 0) parts.push(`-${impact.healthDamage.toFixed(1)}`);
+        if (impact.shieldDamage > 0) parts.push(`ESCUDO -${impact.shieldDamage.toFixed(1)}`);
+        if (impact.healthDamage === 0 && impact.shieldDamage === 0 && impact.incoming > 0) parts.push('MITIGADO');
+        if (parts.length) {
+          ctx.fillStyle = impact.shieldDamage > 0 && impact.healthDamage === 0 ? '#8fe7ff' : '#fff0b0';
+          ctx.font = '900 9px Nunito'; ctx.textAlign = 'center'; ctx.fillText(parts.join(' · '), p.x, p.y - enemy.radius - (enemy.maxShield > 0 ? 18 : 13));
+        }
+      }
       if (enemy.id === run.selectedEnemyId) { ctx.strokeStyle = '#fff0a6'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(p.x, p.y, enemy.radius + 10, 0, Math.PI * 2); ctx.stroke(); }
     }
     for (const projectile of run.projectiles) { const t = 1 - projectile.life / projectile.maxLife; const x = projectile.from.x + (projectile.to.x - projectile.from.x) * t; const y = projectile.from.y + (projectile.to.y - projectile.from.y) * t; ctx.strokeStyle = projectile.towerType === 'mortar' ? 'rgba(255,235,165,.45)' : '#f3d27c'; ctx.lineWidth = projectile.towerType === 'mortar' ? 2 : 1; ctx.beginPath(); ctx.moveTo(projectile.from.x, projectile.from.y); ctx.lineTo(x, y); ctx.stroke(); ctx.fillStyle = projectile.towerType === 'flame' ? '#ec7a35' : projectile.towerType === 'mortar' ? '#f3a64d' : '#f3d27c'; ctx.beginPath(); ctx.arc(x, y, projectile.towerType === 'mortar' ? 6 : 4, 0, Math.PI * 2); ctx.fill(); }

@@ -11,7 +11,7 @@ import { LevelManager } from './levelManager.js';
 import { AudioManager } from './audioManager.js';
 import { getWavePlan } from './levelData.js';
 import { InfiniteManager } from './infiniteManager.js';
-import { enemyPosition, canonicalEnemyKind } from './enemyData.js';
+import { enemyPosition, canonicalEnemyKind, normalizeEnemyCombatState } from './enemyData.js';
 
 export class GameManager {
   constructor(ui) {
@@ -207,7 +207,7 @@ export class GameManager {
       enemies: Array.isArray(saved.enemies) ? saved.enemies.map((enemy) => {
         const kind = canonicalEnemyKind(enemy.kind);
         const base = GAME_CONFIG.enemies[kind] || GAME_CONFIG.enemies.normal;
-        return { ...enemy, kind, shelterDamage: Number.isFinite(enemy.shelterDamage) || enemy.shelterDamage === Infinity ? enemy.shelterDamage : base.shelterDamage, speedRelative: enemy.speedRelative ?? base.speedRelative, armorReduction: enemy.armorReduction ?? base.armorReduction ?? 0, regenRate: enemy.regenRate ?? base.regen ?? 0, controlResistance: enemy.controlResistance ?? base.controlResistance ?? 0, freezeImmunity: enemy.freezeImmunity || 0, regenSuppressed: enemy.regenSuppressed || 0, regenReduction: enemy.regenReduction || 0, vulnerabilityTimer: enemy.vulnerabilityTimer || 0 };
+        return normalizeEnemyCombatState({ ...enemy, kind, shelterDamage: Number.isFinite(enemy.shelterDamage) || enemy.shelterDamage === Infinity ? enemy.shelterDamage : base.shelterDamage, speedRelative: enemy.speedRelative ?? base.speedRelative, armorReduction: enemy.armorReduction ?? base.armorReduction ?? 0, regenRate: enemy.regenRate ?? base.regen ?? 0, controlResistance: enemy.controlResistance ?? base.controlResistance ?? 0, freezeImmunity: enemy.freezeImmunity || 0, regenSuppressed: enemy.regenSuppressed || 0, regenReduction: enemy.regenReduction || 0, vulnerabilityTimer: enemy.vulnerabilityTimer || 0 });
       }) : [],
       projectiles: Array.isArray(saved.projectiles) ? saved.projectiles : [],
       groundFires: Array.isArray(saved.groundFires) ? saved.groundFires : [],

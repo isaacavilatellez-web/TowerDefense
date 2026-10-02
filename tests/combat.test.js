@@ -63,6 +63,69 @@ test('blindaje se aplica una vez, regeneración no revive y jefe destruye el ref
   enemies.spawn('boss'); const boss = g.run.enemies[2]; boss.progress = .99; enemies.tick(1); assert.equal(g.run.baseHp, 0);
 });
 
+test('cada tipo de enemigo recibe daño y ningún estado inválido lo vuelve inmortal', () => {
+  const kinds = ['normal', 'runner', 'tank', 'armored', 'regenerator', 'mini', 'boss'];
+  for (const mode of ['normal', 'infinite', 'test']) {
+    const g = game(mode); g.run.damageDone = 0; g.run.damageTarget = 100000;
+    const enemies = new EnemyManager(g);
+    for (const kind of kinds) {
+      enemies.spawn(kind);
+      const enemy = g.run.enemies.at(-1);
+      const before = enemy.hp;
+      enemies.hit(enemy.id, 10, 0, { x: 0, y: 0 });
+      assert.ok(Number.isFinite(enemy.hp));
+      assert.ok(enemy.hp < before, `${mode}/${kind} no perdió vida`);
+    }
+    const restored = { id: 'restored', kind: 'normal', alive: true, path };
+    g.run.enemies.push(restored);
+    enemies.hit('restored', 10, 0, { x: 0, y: 0 });
+    assert.equal(restored.hp, 90);
+    assert.ok(Number.isFinite(restored.maxHp));
+  }
+});
+
+test('el escudo absorbe primero, el daño restante llega a vida y ambos son visibles en el impacto', () => {
+  const g = game(); const enemies = new EnemyManager(g);
+  enemies.spawn('normal');
+  const enemy = g.run.enemies[0];
+  enemy.hp = 100; enemy.maxHp = 100; enemy.shield = 20; enemy.maxShield = 20;
+  enemies.hit(enemy.id, 10, 0, { x: 0, y: 0 });
+  assert.equal(enemy.shield, 10); assert.equal(enemy.hp, 100); assert.equal(enemy.lastImpact.shieldDamage, 10); assert.equal(enemy.lastImpact.healthDamage, 0);
+  enemies.hit(enemy.id, 20, 0, { x: 0, y: 0 });
+  assert.equal(enemy.shield, 0); assert.equal(enemy.hp, 90); assert.equal(enemy.lastImpact.healthDamage, 10);
+});
+
+test('explosión, fuego, electricidad y congelación no cortan el daño', () => {
+  const g = game(); const enemies = new EnemyManager(g);
+  enemies.spawn('normal'); enemies.spawn('normal'); enemies.spawn('normal');
+  const [primary, splash, chain] = g.run.enemies;
+  enemies.hit(primary.id, 20, 50, { x: 0, y: 0 }, { edgeFalloff: .45 });
+  assert.ok(primary.hp < primary.maxHp); assert.ok(splash.hp < splash.maxHp);
+  enemies.applyFreeze(chain, 1); const beforeFreezeDamage = chain.hp;
+  enemies.hit(chain.id, 20, 0, { x: 0, y: 0 }, { freezeDuration: .5 });
+  assert.ok(chain.hp < beforeFreezeDamage);
+  const fire = enemies.addGroundFire({ x: 0, y: 0, radius: 30, duration: 1, damagePerSecond: 10 });
+  enemies.tick(.5); assert.ok(chain.hp < beforeFreezeDamage);
+  assert.ok(fire.duration < 1);
+  enemies.hit(primary.id, 20, 0, { x: 0, y: 0 }, { chain: 2, chainRange: 100, chainDamages: [20, 10] });
+  assert.ok(chain.hp < chain.maxHp);
+});
+
+test('la adquisición y el impacto funcionan para las seis defensas', () => {
+  const g = game(); g.towers = new TowerManager(g);
+  for (const type of Object.keys(GAME_CONFIG.towers)) {
+    g.run.enemies = []; g.run.projectiles = [];
+    g.run.towers = [{ id: `tower-${type}`, type, level: 1, x: 0, y: 0, cooldown: 0, priority: 'first' }];
+    g.enemies = new EnemyManager(g);
+    g.enemies.spawn('normal');
+    const target = g.run.enemies[0];
+    g.towers.tick(.01);
+    assert.ok(g.run.projectiles.length > 0, `${type} no adquirió objetivo`);
+    for (const projectile of g.run.projectiles) g.enemies.hit(projectile.targetId, projectile.damage, projectile.splash, projectile.to, projectile);
+    assert.ok(target.hp < target.maxHp, `${type} no aplicó daño`);
+  }
+});
+
 test('los estados periódicos conservan precisión, bloquean regeneración y respetan inmunidad', () => {
   const g = game(); const enemies = new EnemyManager(g); enemies.spawn('regenerator'); const enemy = g.run.enemies[0];
   enemy.hp = 100; enemies.applyBurn(enemy, 2, 10, 1); enemies.tick(.5); assert.equal(enemy.hp, 95); enemies.tick(.5); assert.equal(enemy.hp, 90);
