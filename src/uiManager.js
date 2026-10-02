@@ -3,28 +3,28 @@ import { getTowerStats, towerCost } from './towerData.js';
 import { enemyPosition } from './enemyData.js';
 import { SaveSystem } from './saveSystem.js';
 import groundSprite from '../sprites/cesped.png';
-import treeSprite from '../sprites/arbol.png';
-import shrubSprite from '../sprites/arbusto.png';
-import rockSprite from '../sprites/roca.png';
-import gunnerSprite from '../sprites/amt_n1.png';
-import cannonSprite from '../sprites/cañ_n1.png';
-import flameSprite from '../sprites/flm_n1.png';
-import sniperSprite from '../sprites/hie_n1.png';
-import mortarSprite from '../sprites/mis_n1.png';
-import teslaSprite from '../sprites/tes_n1.png';
+import treeSprite from '../sprites/dec_arbol.png';
+import shrubSprite from '../sprites/dec_arbusto.png';
+import rockSprite from '../sprites/dec_roca.png';
+import gunnerSprite from '../sprites/def_amt_n1.png';
+import cannonSprite from '../sprites/def_cañ_n1.png';
+import flameSprite from '../sprites/def_flm_n1.png';
+import sniperSprite from '../sprites/def_hie_n1.png';
+import mortarSprite from '../sprites/def_mis_n1.png';
+import teslaSprite from '../sprites/def_tes_n1.png';
 import coinSprite from '../sprites/Moneda.png';
-import suppliesSprite from '../sprites/Suministros.png';
-import crystalsSprite from '../sprites/Cristales.png';
-import commonGearSprite from '../sprites/Engranaje_Comun.png';
-import rareGearSprite from '../sprites/Engranaje_Raro.png';
-import epicGearSprite from '../sprites/Engranaje_Epico.png';
-import legendaryGearSprite from '../sprites/Engranaje_Legendario.png';
-import woodChestSprite from '../sprites/Cofre_Madera.png';
-import reinforcedChestSprite from '../sprites/Cofre_Reforzado.png';
-import militaryChestSprite from '../sprites/Cofre_Militar.png';
-import armoredChestSprite from '../sprites/Cofre_Blindado.png';
-import commanderChestSprite from '../sprites/Cofre_Comandante.png';
-import shelterSprite from '../sprites/Refugio.png';
+import suppliesSprite from '../sprites/rec_suministros.png';
+import crystalsSprite from '../sprites/rec_cristales.png';
+import commonGearSprite from '../sprites/eng_comun.png';
+import rareGearSprite from '../sprites/eng_raro.png';
+import epicGearSprite from '../sprites/eng_epico.png';
+import legendaryGearSprite from '../sprites/eng_legendario.png';
+import woodChestSprite from '../sprites/cof_madera.png';
+import reinforcedChestSprite from '../sprites/cof_reforzado.png';
+import militaryChestSprite from '../sprites/cof_militar.png';
+import armoredChestSprite from '../sprites/cof_blindado.png';
+import commanderChestSprite from '../sprites/cof_comandante.png';
+import shelterSprite from '../sprites/ref_n1.png';
 
 export class UIManager {
   constructor() {
@@ -82,6 +82,9 @@ export class UIManager {
     Object.entries(this.spritePaths).forEach(([key, src]) => {
       const image = new Image();
       image.decoding = 'async';
+      image.onload = () => {
+        if (this.screen === 'battle') this.render();
+      };
       image.src = src;
       this.sprites[key] = image;
     });
@@ -257,6 +260,12 @@ export class UIManager {
   showDefenses() {
     this.removeBattleResizeHandler();
     this.screen = 'defenses';
+    const economy = GAME_CONFIG.economy.permanent;
+    const resourceSummary = [
+      `<span class="defense-resource-counter supplies-resource"><span class="resource-icon resource-icon-image">${this.resourceArt('supplies')}</span><strong>${this.game.economy.getSupplies()}</strong></span>`,
+      `<span class="defense-resource-counter crystals-resource"><span class="resource-icon resource-icon-image">${this.resourceArt('crystals')}</span><strong>${this.game.save.crystals}</strong></span>`,
+      ...['common', 'rare', 'epic', 'legendary'].map((rarity) => `<span class="defense-resource-counter gear-resource-counter" style="--gear-color:${economy.gearColors[rarity]}"><span class="resource-icon resource-icon-image">${this.gearArt(rarity)}</span><strong>${this.game.economy.gearCount(rarity)}</strong></span>`),
+    ].join('');
     const cards = Object.values(GAME_CONFIG.towers).map((tower) => {
       const level = this.game.towerLevel(tower.id);
       const stats = getTowerStats(tower.id, 1, {}, level);
@@ -267,7 +276,7 @@ export class UIManager {
       const available = this.game.economy.gearCount(tower.rarityId);
       return `<button class="defense-card" data-defense="${tower.id}" data-rarity="${tower.rarityId}" data-level="${level}" style="--rarity-color:${tower.rarityColor}"><span class="rarity">${tower.rarity} · NIVEL ${level}</span><span class="tower-art defense-art defense-image">${this.towerArt(tower.id)}</span><h3 class="defense-name">${tower.name}</h3><div class="defense-meta"><span>${tower.type}</span><b>${level >= 10 ? 'MÁXIMO' : this.gearCostArt(tower.rarityId, `${available} / ${cost}`)}</b></div><div class="stat-bars"><div class="stat-bar"><span>DAÑO</span><i class="stat-track"><i style="width:${damage}%"></i></i><b>${stats.damage}</b></div><div class="stat-bar"><span>RITMO</span><i class="stat-track"><i style="width:${speed}%"></i></i><b>${Math.round(1 / stats.cooldown * 10)}</b></div><div class="stat-bar"><span>RANGO</span><i class="stat-track"><i style="width:${range}%"></i></i><b>${Math.round(stats.range)}</b></div></div></button>`;
     }).join('');
-    this.app.innerHTML = `<main class="app-shell screen-shell"><header class="topbar"><div class="brand-lockup"><span class="brand-mark">✦</span><div><span class="eyebrow">ARSENAL DE LA BASE</span><h1>Tus <em>defensas</em></h1></div></div>${this.menuResources()}</header><section class="screen-head"><div><span class="eyebrow">NIVEL PERMANENTE · EVOLUCIÓN EN PARTIDA</span><h2>Elige tu guardián</h2><p>Mejora estadísticas base con engranajes. Las fusiones siguen siendo evoluciones temporales de cada partida.</p></div><span class="screen-badge">${Object.keys(GAME_CONFIG.towers).length} DEFENSAS</span></section><section class="collection-grid defense-grid">${cards}</section><section class="defense-detail panel" id="defense-detail"></section>${this.bottomNav('defenses')}</main>`;
+    this.app.innerHTML = `<main class="app-shell screen-shell"><header class="topbar"><div class="brand-lockup"><span class="brand-mark">✦</span><div><span class="eyebrow">ARSENAL DE LA BASE</span><h1>Tus <em>defensas</em></h1></div></div>${this.menuResources()}</header><section class="screen-head"><div><span class="eyebrow">NIVEL PERMANENTE · EVOLUCIÓN EN PARTIDA</span><h2>Elige tu guardián</h2><p>Mejora estadísticas base con engranajes. Las fusiones siguen siendo evoluciones temporales de cada partida.</p></div><span class="screen-badge">${Object.keys(GAME_CONFIG.towers).length} DEFENSAS</span></section><section class="defense-resource-summary panel" aria-label="Recursos disponibles"><div class="defense-resource-list">${resourceSummary}</div></section><section class="collection-grid defense-grid">${cards}</section><section class="defense-detail panel" id="defense-detail"></section>${this.bottomNav('defenses')}</main>`;
     this.app.querySelectorAll('[data-defense]').forEach((card) => card.addEventListener('click', () => this.selectDefense(card.dataset.defense)));
     this.selectDefense('gunner');
     this.bindNav();
@@ -529,7 +538,7 @@ export class UIManager {
   }
 
   menuResources() {
-    return `<div class="resource-stack"><div class="resource supplies-resource"><span class="resource-icon resource-icon-image">${this.resourceArt('supplies')}</span><strong class="supplies-value">${this.game.economy.getSupplies()}</strong><small>SUMINISTROS</small></div><div class="resource special-resource"><span class="resource-icon resource-icon-image">${this.resourceArt('crystals')}</span><strong class="crystal-value">${this.game.save.crystals}</strong><small>CRISTALES</small></div></div>`;
+    return `<div class="resource-stack"><div class="resource supplies-resource"><span class="resource-icon resource-icon-image">${this.resourceArt('supplies')}</span><strong class="supplies-value">${this.game.economy.getSupplies()}</strong></div><div class="resource special-resource"><span class="resource-icon resource-icon-image">${this.resourceArt('crystals')}</span><strong class="crystal-value">${this.game.save.crystals}</strong></div></div>`;
   }
 
   updateShopDragPreview(event = null) {
@@ -819,7 +828,8 @@ export class UIManager {
       ctx.save(); ctx.translate(obstacle.x, obstacle.y); ctx.rotate(obstacle.rotation || 0);
       const asset = obstacle.kind === 'tree' ? 'tree' : obstacle.kind === 'shrub' ? 'shrub' : obstacle.kind === 'rock' ? 'rock' : null;
       const size = obstacle.kind === 'tree' ? obstacle.size * 4.5 : obstacle.size * 3.7;
-      if (asset && this.drawSprite(ctx, asset, 0, obstacle.kind === 'tree' ? size * .08 : 0, size, size, .96)) {
+      if (asset) {
+        this.drawSprite(ctx, asset, 0, obstacle.kind === 'tree' ? size * .08 : 0, size, size, .96);
         ctx.restore();
         continue;
       }
@@ -839,11 +849,7 @@ export class UIManager {
       ctx.fillStyle = '#fff5c4'; ctx.font = '900 9px Nunito'; ctx.textAlign = 'center'; ctx.fillText('ENTRADA', entrance.x, entrance.y + 3);
     }
     const base = paths[0][paths[0].length - 1];
-    const shelterDrawn = this.drawSprite(ctx, 'shelter', base.x, base.y - 7, 88, 88, 1);
-    if (!shelterDrawn) {
-      ctx.fillStyle = '#6b4c31'; ctx.strokeStyle = '#e7c27d'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(base.x, base.y, 31, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#efe0ad'; ctx.font = '700 18px Arial'; ctx.textAlign = 'center'; ctx.fillText('⌂', base.x, base.y + 7);
-    }
+    this.drawSprite(ctx, 'shelter', base.x, base.y - 7, 88, 88, 1);
     ctx.fillStyle = '#efe0ad'; ctx.font = '700 11px Arial'; ctx.textAlign = 'center'; ctx.fillText('REFUGIO', base.x, base.y + 43);
     const healthWidth = 82;
     const healthX = Math.max(12, Math.min(width - healthWidth - 12, base.x + 38));
@@ -946,10 +952,7 @@ export class UIManager {
     if (selected || target) { ctx.strokeStyle = target ? '#7de38b' : '#f1d889'; ctx.lineWidth = target ? 5 : 3; ctx.beginPath(); ctx.arc(0, 0, 25 + (target ? Math.sin(performance.now() / 120) * 2 : 0), 0, Math.PI * 2); ctx.stroke(); }
     ctx.fillStyle = animation.mergeable ? '#c19b4a' : 'rgba(48, 63, 38, .34)'; ctx.beginPath(); ctx.ellipse(0, 17, 22, 7, 0, 0, Math.PI * 2); ctx.fill();
     const spriteSize = 58;
-    if (!this.drawSprite(ctx, tower.type, 0, 0, spriteSize, spriteSize, 1)) {
-      ctx.fillStyle = '#6b482f'; ctx.fillRect(-18, 8, 36, 8); ctx.fillStyle = '#9a6b3f'; ctx.fillRect(-14, 5, 28, 7); ctx.strokeStyle = stats.color; ctx.lineWidth = 2;
-      ctx.fillStyle = '#514f42'; ctx.fillRect(-6, -10, 12, 17); ctx.fillStyle = '#827b60'; ctx.fillRect(-3, -18, 6, 11); ctx.fillStyle = '#3c3b35'; ctx.fillRect(1, -20, 17, 4);
-    }
+    this.drawSprite(ctx, tower.type, 0, 0, spriteSize, spriteSize, 1);
     ctx.fillStyle = '#f5edc5'; ctx.font = '700 10px Arial'; ctx.textAlign = 'center'; ctx.fillText(`E${tower.level}`, 0, -27); ctx.restore();
   }
 
