@@ -57,15 +57,15 @@ export function getWavePlan(level) {
   const later = [3, 4, 5].map((count, index) => count + Math.floor(pressure * (.8 + index * .3)));
   const plan = [
     { type: 'wave', number: 1, enemies: counts[0], kind: 'normal', interval: Math.max(2.3, 3.5 - pressure * .05) },
-    { type: 'wave', number: 2, enemies: counts[1], kind: pressure >= 3 ? 'runner' : 'normal', interval: Math.max(2.1, 3.15 - pressure * .05) },
-    { type: 'wave', number: 3, enemies: counts[2], kind: pressure >= 4 ? 'tank' : 'normal', interval: Math.max(1.9, 2.9 - pressure * .06) },
+    { type: 'wave', number: 2, enemies: counts[1], kind: pressure >= 1 ? 'runner' : 'normal', interval: Math.max(2.1, 3.15 - pressure * .05) },
+    { type: 'wave', number: 3, enemies: counts[2], kind: pressure >= 2 ? 'tank' : 'normal', interval: Math.max(1.9, 2.9 - pressure * .06) },
     { type: 'miniboss', label: 'MINIBOSS', enemy: 'mini', rest: 4 },
-    { type: 'wave', number: 4, enemies: later[0], kind: pressure >= 4 ? 'runner' : 'normal', interval: Math.max(1.8, 2.75 - pressure * .06) },
-    { type: 'wave', number: 5, enemies: later[1], kind: pressure >= 5 ? 'tank' : 'normal', interval: Math.max(1.65, 2.55 - pressure * .06) },
+    { type: 'wave', number: 4, enemies: later[0], kind: pressure >= 4 ? 'armored' : 'runner', interval: Math.max(1.8, 2.75 - pressure * .06) },
+    { type: 'wave', number: 5, enemies: later[1], kind: pressure >= 5 ? 'regenerator' : 'tank', interval: Math.max(1.65, 2.55 - pressure * .06) },
     { type: 'wave', number: 6, enemies: later[2], kind: pressure >= 6 ? 'runner' : 'normal', interval: Math.max(1.5, 2.35 - pressure * .06) },
     { type: 'miniboss', label: 'MINIBOSS', enemy: 'mini', rest: 4 },
-    { type: 'wave', number: 7, enemies: later[0] + 1, kind: pressure >= 7 ? 'tank' : 'normal', interval: Math.max(1.35, 2.1 - pressure * .06) },
-    { type: 'wave', number: 8, enemies: later[1] + 1, kind: pressure >= 8 ? 'runner' : 'normal', interval: Math.max(1.2, 1.95 - pressure * .06) },
+    { type: 'wave', number: 7, enemies: later[0] + 1, kind: pressure >= 7 ? 'armored' : 'tank', interval: Math.max(1.35, 2.1 - pressure * .06) },
+    { type: 'wave', number: 8, enemies: later[1] + 1, kind: pressure >= 8 ? 'regenerator' : 'runner', interval: Math.max(1.2, 1.95 - pressure * .06) },
     { type: 'boss', label: 'BOSS FINAL', enemy: 'boss' },
   ];
   plan.ambientSpawn = {

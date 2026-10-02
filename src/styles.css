@@ -1297,6 +1297,10 @@ body { overflow:hidden; }
 .infinite-entry span { display:block; font-family:Arial,sans-serif; font-size:2rem; line-height:.7; }
 .infinite-entry small { display:block; margin-top:-2px; font-size:.42rem; font-weight:900; letter-spacing:.04em; }
 .infinite-entry:active { transform:translateY(3px); box-shadow:0 2px 0 #b99a36, 0 0 0 3px rgba(255,255,255,.55); }
+.test-entry { position:absolute; z-index:14; right:max(84px, calc(14px + 4.5rem)); bottom:calc(92px + env(safe-area-inset-bottom)); width:62px; height:62px; display:grid; place-items:center; padding:5px; border:4px solid #929ba1; border-radius:50%; color:#17261d; background:#9fe2e5; box-shadow:0 5px 0 #57999d, 0 0 0 3px rgba(255,255,255,.55); touch-action:manipulation; }
+.test-entry span { display:block; font-size:1.45rem; line-height:.7; }
+.test-entry small { display:block; margin-top:-2px; font-size:.4rem; font-weight:900; letter-spacing:.04em; }
+.test-entry:active { transform:translateY(3px); box-shadow:0 2px 0 #57999d, 0 0 0 3px rgba(255,255,255,.55); }
 .infinite-preparation-backdrop { z-index:40; }
 .infinite-preparation h2 { font-size:clamp(1.5rem, 6vw, 2.25rem); }
 .infinite-preparation-actions { display:grid; gap:9px; margin-top:18px; }
@@ -1304,11 +1308,34 @@ body { overflow:hidden; }
 .infinite-battle .next-boss { visibility:hidden; }
 .result-actions { display:grid; gap:9px; margin-top:17px; }
 .result-actions .soft-button, .result-actions .primary-button { min-height:44px; }
+.test-preparation h2 { font-size:clamp(1.5rem, 6vw, 2.25rem); }
+.test-prep-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin:20px 0; }
+.test-prep-grid label,.test-option { display:grid; gap:6px; color:rgba(255,248,223,.65); font-size:.58rem; font-weight:900; letter-spacing:.05em; }
+.test-prep-grid select,.test-option select { min-height:38px; padding:8px; color:var(--lime); background:#0b3022; border:1px solid rgba(255,248,223,.15); border-radius:9px; font-size:.65rem; font-weight:900; }
+.test-battle .test-panel { padding:11px; border:1px solid rgba(120,200,219,.35); border-radius:16px; background:rgba(16,64,66,.86); box-shadow:var(--soft-shadow); }
+.test-panel-head { display:flex; justify-content:space-between; align-items:center; color:#b7f0ed; font-size:.66rem; letter-spacing:.07em; }
+.test-collapse { width:26px; height:26px; border-radius:8px; color:#b7f0ed; background:rgba(255,255,255,.1); }
+.test-panel-body { display:grid; gap:8px; margin-top:9px; }
+.test-panel.collapsed .test-panel-body { display:none; }
+.test-enemy-buttons { display:grid; grid-template-columns:repeat(2,1fr); gap:5px; }
+.test-enemy-button,.test-actions button { min-height:32px; padding:5px; border:1px solid rgba(183,240,237,.25); border-radius:8px; color:#eafff3; background:rgba(255,255,255,.08); font-size:.52rem; font-weight:900; }
+.test-enemy-button:hover,.test-actions button:hover { background:rgba(120,200,219,.2); }
+.test-actions { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; }
+.test-option { grid-template-columns:1fr auto; align-items:center; }
+.test-option select { min-width:110px; }
+.test-check { display:flex; align-items:center; gap:6px; color:#d5f6d2; }
+.test-check input { accent-color:var(--mint); }
+.test-inspection { min-height:45px; padding:8px; border-radius:9px; color:rgba(255,248,223,.65); background:rgba(4,31,30,.45); font-size:.58rem; line-height:1.35; }
+.test-inspection strong,.test-inspection span,.test-inspection small { display:block; }
+.test-inspection strong { color:#d5f6d2; font-size:.68rem; }
+.test-inspection span { color:#fff0b0; }
 
 @media (max-width:540px) {
   .infinite-entry { right:max(10px, env(safe-area-inset-right)); bottom:calc(88px + env(safe-area-inset-bottom)); width:58px; height:58px; }
   .infinite-entry span { font-size:1.8rem; }
   .infinite-entry small { font-size:.38rem; }
+  .test-entry { right:78px; bottom:calc(88px + env(safe-area-inset-bottom)); width:58px; height:58px; }
+  .test-entry small { font-size:.35rem; }
 }
 
 /* Clicker reducido: el botón contiene únicamente su nombre y multiplicador. */

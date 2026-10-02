@@ -119,7 +119,7 @@ export class EconomyManager {
     const { run } = this.game;
     const values = GAME_CONFIG.economy.clickValues;
     const amount = values[Math.min(values.length - 1, Math.max(0, run.clickerLevel - 1))] || 1;
-    run.coins += amount;
+    if (!run.unlimitedCoins) run.coins += amount;
     run.clicks += 1;
     this.game.feedback(`+${amount} monedas`, 'coin');
   }
@@ -127,8 +127,8 @@ export class EconomyManager {
   upgradeClicker() {
     const { run } = this.game;
     const cost = this.clickerCost();
-    if (!cost || run.coins < cost) return false;
-    run.coins -= cost;
+    if (!cost || (!run.unlimitedCoins && run.coins < cost)) return false;
+    if (!run.unlimitedCoins) run.coins -= cost;
     run.clickerLevel += 1;
     this.game.feedback('Clicker mejorado', 'success');
     return true;

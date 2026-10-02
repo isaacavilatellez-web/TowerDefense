@@ -1,19 +1,25 @@
 import { GAME_CONFIG, getLevelDifficulty } from './config.js';
 
+export const ENEMY_ALIASES = { basic: 'normal', normal: 'normal', runner: 'runner', tank: 'tank', armored: 'armored', regenerator: 'regenerator', miniBoss: 'mini', mini: 'mini', finalBoss: 'boss', boss: 'boss' };
+export function canonicalEnemyKind(kind) { return ENEMY_ALIASES[kind] || 'normal'; }
+
 export function createEnemy(kind, level, path, id, overrides = {}) {
-  const base = GAME_CONFIG.enemies[kind];
+  const canonical = canonicalEnemyKind(kind);
+  const base = GAME_CONFIG.enemies[canonical];
   const difficulty = getLevelDifficulty(level);
   const hpMultiplier = Number.isFinite(overrides.hpMultiplier) ? overrides.hpMultiplier : difficulty.enemyHpMultiplier;
   const speedMultiplier = Number.isFinite(overrides.speedMultiplier) ? overrides.speedMultiplier : difficulty.enemySpeedMultiplier;
-  const hp = kind === 'boss' ? difficulty.bossHp : base.hp * hpMultiplier;
+  const hp = base.hp * hpMultiplier;
   const segmentLengths = path.slice(0, -1).map((point, index) => Math.hypot(path[index + 1].x - point.x, path[index + 1].y - point.y));
   return {
     id,
-    kind,
+    kind: canonical,
     name: base.name,
     hp,
     maxHp: hp,
-    speed: base.speed * speedMultiplier,
+    speed: .026 * base.speedRelative * speedMultiplier,
+    speedRelative: base.speedRelative,
+    shelterDamage: base.shelterDamage,
     reward: Math.round(base.reward * (1 + Math.min(
       GAME_CONFIG.economy.rewardLevelBonusCap,
       Math.max(0, level - 1) * GAME_CONFIG.economy.rewardLevelStep,
@@ -22,19 +28,26 @@ export function createEnemy(kind, level, path, id, overrides = {}) {
     pathLength: segmentLengths.reduce((sum, length) => sum + length, 0),
     color: base.color,
     radius: base.radius,
+    indicator: base.indicator,
     progress: 0,
     path,
     alive: true,
-    shield: kind === 'mini' ? hp * 0.18 : kind === 'boss' ? hp * 0.28 : 0,
-    // La regeneración se declara en los datos del enemigo. No se aplica por
-    // tipo automáticamente para evitar que el enemigo rosa recupere vida sin
-    // que exista una regla de diseño explícita.
-    regen: base.regen || 0,
+    armorReduction: base.armorReduction || 0,
+    regenRate: base.regen || 0,
+    controlResistance: base.controlResistance || 0,
     slowFactor: 1,
     slowTimer: 0,
     freezeTimer: 0,
+    freezeImmunity: 0,
+    burn: null,
+    regenSuppressed: 0,
+    regenReduction: 0,
+    vulnerability: 0,
+    vulnerabilityTimer: 0,
+    electricTimer: 0,
     pulse: 0,
     damageCounted: 0,
+    selected: false,
   };
 }
 

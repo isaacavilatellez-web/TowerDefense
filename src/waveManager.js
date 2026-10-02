@@ -46,7 +46,10 @@ export class WaveManager {
     if (run.ambientSpawnedThisPhase >= maxPerPhase) return;
     run.ambientTimer -= seconds;
     if (run.ambientTimer > 0) return;
-    const pool = run.phase.type === 'boss' ? ['normal', 'normal', 'runner'] : run.level >= 4 ? ['normal', 'normal', 'runner'] : ['normal', 'normal'];
+    const pool = run.phase.type === 'boss'
+      ? ['normal', 'runner', 'armored', 'regenerator']
+      : run.level >= 6 ? ['normal', 'runner', 'armored', 'regenerator']
+        : run.level >= 4 ? ['normal', 'runner', 'tank'] : ['normal', 'normal', 'runner'];
     const kind = pool[(run.ambientSpawned + run.phaseIndex) % pool.length];
     this.game.enemies.spawn(kind, { ambient: true });
     run.ambientSpawned += 1;

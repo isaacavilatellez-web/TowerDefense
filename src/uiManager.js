@@ -105,6 +105,7 @@ export class UIManager {
           <section class="world-track" id="world-track"></section>
         </section>
         <button class="infinite-entry" id="infinite-entry" aria-label="Abrir modo infinito"><span>∞</span><small>INFINITO</small></button>
+        <button class="test-entry" id="test-entry" aria-label="Abrir modo de prueba"><span>⚙</span><small>PRUEBA</small></button>
         ${this.bottomNav('map')}
       </main>`;
     this.renderMapNodes();
@@ -112,6 +113,7 @@ export class UIManager {
       if (!event.target.closest('.level-node, .level-selection-card')) this.closeLevelCard();
     });
     this.app.querySelector('#infinite-entry')?.addEventListener('click', () => this.openInfinitePreparation());
+    this.app.querySelector('#test-entry')?.addEventListener('click', () => this.openTestPreparation());
     this.bindNav();
   }
 
@@ -126,6 +128,20 @@ export class UIManager {
     overlay.addEventListener('click', (event) => { if (event.target === overlay) overlay.remove(); });
     overlay.querySelector('.infinite-enter').addEventListener('click', () => { overlay.remove(); this.game.startInfinite({ continueSaved: true }); });
     overlay.querySelector('.infinite-upgrades').addEventListener('click', () => { overlay.remove(); this.game.openInfiniteUpgrades(); });
+  }
+
+  openTestPreparation() {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-backdrop test-preparation-backdrop';
+    overlay.innerHTML = `<div class="level-modal test-preparation"><button class="modal-close" aria-label="Cerrar">×</button><span class="eyebrow">LABORATORIO AISLADO</span><h2>MODO DE PRUEBA</h2><p class="modal-title">Campo y motor normales, sin recompensas ni cambios persistentes.</p><div class="test-prep-grid"><label>NIVEL PERMANENTE<select class="test-prep-level">${Array.from({ length: 10 }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('')}</select></label><label>DIFICULTAD<select class="test-prep-difficulty"><option value="easy">FÁCIL</option><option value="normal" selected>NORMAL</option><option value="hard">DIFÍCIL</option><option value="extreme">EXTREMA</option></select></label></div><button class="primary-button test-enter">ENTRAR AL LABORATORIO <span>→</span></button></div>`;
+    document.body.append(overlay);
+    overlay.querySelector('.modal-close').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (event) => { if (event.target === overlay) overlay.remove(); });
+    overlay.querySelector('.test-enter').addEventListener('click', () => {
+      const level = Number(overlay.querySelector('.test-prep-level').value);
+      const difficulty = overlay.querySelector('.test-prep-difficulty').value;
+      overlay.remove(); this.game.startTest({ level, testPermanentLevel: level, testDifficulty: difficulty });
+    });
   }
 
   rewardLabel(reward) {
@@ -269,14 +285,14 @@ export class UIManager {
     const cards = Object.values(GAME_CONFIG.towers).map((tower) => {
       const level = this.game.towerLevel(tower.id);
       const stats = getTowerStats(tower.id, 1, {}, level);
-      const damage = Math.min(100, Math.round(stats.damage / 70 * 100));
+      const damage = Math.min(100, Math.round(stats.displayDamage / 70 * 100));
       const speed = Math.min(100, Math.round(1 / stats.cooldown * 24));
       const range = Math.min(100, Math.round(stats.range / 2));
       const cost = this.game.towerUpgradeCost(tower.id);
       const available = this.game.economy.gearCount(tower.rarityId);
-      return `<button class="defense-card" data-defense="${tower.id}" data-rarity="${tower.rarityId}" data-level="${level}" style="--rarity-color:${tower.rarityColor}"><span class="rarity">${tower.rarity} · NIVEL ${level}</span><span class="tower-art defense-art defense-image">${this.towerArt(tower.id)}</span><h3 class="defense-name">${tower.name}</h3><div class="defense-meta"><span>${tower.type}</span><b>${level >= 10 ? 'MÁXIMO' : this.gearCostArt(tower.rarityId, `${available} / ${cost}`)}</b></div><div class="stat-bars"><div class="stat-bar"><span>DAÑO</span><i class="stat-track"><i style="width:${damage}%"></i></i><b>${stats.damage}</b></div><div class="stat-bar"><span>RITMO</span><i class="stat-track"><i style="width:${speed}%"></i></i><b>${Math.round(1 / stats.cooldown * 10)}</b></div><div class="stat-bar"><span>RANGO</span><i class="stat-track"><i style="width:${range}%"></i></i><b>${Math.round(stats.range)}</b></div></div></button>`;
+      return `<button class="defense-card" data-defense="${tower.id}" data-rarity="${tower.rarityId}" data-level="${level}" style="--rarity-color:${tower.rarityColor}"><span class="rarity">${tower.rarity} · NIVEL ${level}</span><span class="tower-art defense-art defense-image">${this.towerArt(tower.id)}</span><h3 class="defense-name">${tower.name}</h3><div class="defense-meta"><span>${tower.type}</span><b>${level >= 10 ? 'MÁXIMO' : this.gearCostArt(tower.rarityId, `${available} / ${cost}`)}</b></div><div class="stat-bars"><div class="stat-bar"><span>DAÑO</span><i class="stat-track"><i style="width:${damage}%"></i></i><b>${stats.displayDamage}</b></div><div class="stat-bar"><span>RITMO</span><i class="stat-track"><i style="width:${speed}%"></i></i><b>${Math.round(1 / stats.cooldown * 10)}</b></div><div class="stat-bar"><span>RANGO</span><i class="stat-track"><i style="width:${range}%"></i></i><b>${Math.round(stats.range)}</b></div></div></button>`;
     }).join('');
-    this.app.innerHTML = `<main class="app-shell screen-shell"><header class="topbar"><div class="brand-lockup"><span class="brand-mark">✦</span><div><span class="eyebrow">ARSENAL DE LA BASE</span><h1>Tus <em>defensas</em></h1></div></div>${this.menuResources()}</header><section class="screen-head"><div><span class="eyebrow">NIVEL PERMANENTE · EVOLUCIÓN EN PARTIDA</span><h2>Elige tu guardián</h2><p>Mejora estadísticas base con engranajes. Las fusiones siguen siendo evoluciones temporales de cada partida.</p></div><span class="screen-badge">${Object.keys(GAME_CONFIG.towers).length} DEFENSAS</span></section><section class="defense-resource-summary panel" aria-label="Recursos disponibles"><div class="defense-resource-list">${resourceSummary}</div></section><section class="collection-grid defense-grid">${cards}</section><section class="defense-detail panel" id="defense-detail"></section>${this.bottomNav('defenses')}</main>`;
+    this.app.innerHTML = `<main class="app-shell screen-shell"><header class="topbar"><div class="brand-lockup"><span class="brand-mark">✦</span><div><span class="eyebrow">ARSENAL DE LA BASE</span><h1>Tus <em>defensas</em></h1></div></div>${this.menuResources()}</header><section class="screen-head"><div><span class="eyebrow">NIVEL PERMANENTE · EVOLUCIÓN EN PARTIDA</span><h2>Elige tu guardián</h2><p>Mejora sólo el daño con engranajes. Los costes de salto son PV convertidos por rareza; las fusiones siguen siendo evoluciones temporales de cada partida.</p></div><span class="screen-badge">${Object.keys(GAME_CONFIG.towers).length} DEFENSAS</span></section><section class="defense-resource-summary panel" aria-label="Recursos disponibles"><div class="defense-resource-list">${resourceSummary}</div></section><section class="collection-grid defense-grid">${cards}</section><section class="defense-detail panel" id="defense-detail"></section>${this.bottomNav('defenses')}</main>`;
     this.app.querySelectorAll('[data-defense]').forEach((card) => card.addEventListener('click', () => this.selectDefense(card.dataset.defense)));
     this.selectDefense('gunner');
     this.bindNav();
@@ -292,8 +308,8 @@ export class UIManager {
     const available = this.game.economy.gearCount(tower.rarityId);
     const detail = this.app.querySelector('#defense-detail');
     if (!detail) return;
-    const nextLabel = nextStats ? `Siguiente: ${nextStats.damage} daño · ${Math.round(nextStats.range)} alcance` : 'Esta defensa ya está al máximo.';
-    detail.innerHTML = `<span class="tower-art detail-art">${this.towerArt(type)}</span><div><span class="eyebrow">${tower.rarity.toUpperCase()} · NIVEL PERMANENTE</span><h3>${tower.name} · NIVEL ${level}</h3><p>${tower.description}</p><p class="next-upgrade">${nextLabel}</p></div><div class="detail-stats"><span>DAÑO<b>${stats.damage}${nextStats ? ` → ${nextStats.damage}` : ''}</b></span><span>RITMO<b>${Math.round(1 / stats.cooldown * 10)}${nextStats ? ` → ${Math.round(1 / nextStats.cooldown * 10)}` : ''}</b></span><span>RANGO<b>${Math.round(stats.range)}${nextStats ? ` → ${Math.round(nextStats.range)}` : ''}</b></span></div><div class="gear-cost-detail"><span>ENGRANAJES</span><b>${level >= 10 ? 'MÁXIMO' : this.gearCostArt(tower.rarityId, `${available} / ${cost}`)}</b></div><button class="soft-button defense-upgrade" ${level >= 10 || available < cost ? 'disabled' : ''}>${level >= 10 ? 'NIVEL MÁXIMO' : 'MEJORAR'}</button>`;
+    const nextLabel = nextStats ? `Siguiente: ${nextStats.displayDamage} daño · ${Math.round(nextStats.range)} alcance` : 'Esta defensa ya está al máximo.';
+    detail.innerHTML = `<span class="tower-art detail-art">${this.towerArt(type)}</span><div><span class="eyebrow">${tower.rarity.toUpperCase()} · NIVEL PERMANENTE</span><h3>${tower.name} · NIVEL ${level}</h3><p>${tower.description}</p><p class="next-upgrade">${nextLabel}</p></div><div class="detail-stats"><span>DAÑO<b>${stats.displayDamage}${nextStats ? ` → ${nextStats.displayDamage}` : ''}</b></span><span>RITMO<b>${Math.round(1 / stats.cooldown * 10)}${nextStats ? ` → ${Math.round(1 / nextStats.cooldown * 10)}` : ''}</b></span><span>RANGO<b>${Math.round(stats.range)}${nextStats ? ` → ${Math.round(nextStats.range)}` : ''}</b></span></div><div class="gear-cost-detail"><span>ENGRANAJES</span><b>${level >= 10 ? 'MÁXIMO' : this.gearCostArt(tower.rarityId, `${available} / ${cost}`)}</b></div><button class="soft-button defense-upgrade" ${level >= 10 || available < cost ? 'disabled' : ''}>${level >= 10 ? 'NIVEL MÁXIMO' : 'MEJORAR'}</button>`;
     detail.querySelector('.defense-upgrade').addEventListener('click', () => {
       if (!this.game.upgradePermanentTower(type)) {
         this.showToast(`Necesitas ${cost} engranajes ${tower.rarity.toLowerCase()}`);
@@ -339,17 +355,18 @@ export class UIManager {
     const run = this.game.run;
     this.resultRenderKey = '';
     const infinite = run.mode === 'infinite';
-    const battleLabel = infinite ? `FASE ${run.infinitePhase}` : `NIVEL ${String(run.level).padStart(2, '0')}`;
+    const test = run.testMode;
+    const battleLabel = infinite ? `FASE ${run.infinitePhase}` : test ? 'PRUEBA' : `NIVEL ${String(run.level).padStart(2, '0')}`;
     const currentClickValue = GAME_CONFIG.economy.clickValues[Math.min(GAME_CONFIG.economy.clickValues.length - 1, run.clickerLevel - 1)] || 1;
     const nextClickValue = GAME_CONFIG.economy.clickValues[run.clickerLevel] || 'MÁX';
     const clickerCost = this.game.economy.clickerCost() || 'MÁX';
     console.log('showBattle', { level: run?.level, mapReady: Boolean(run?.map) });
-    this.app.innerHTML = `<main class="app-shell battle-screen ${infinite ? 'infinite-battle' : ''}"><header class="battle-header"><button class="icon-button back-map" aria-label="Volver al mapa">‹</button><div class="battle-title"><h1>${battleLabel}</h1></div><div class="battle-progress"><div class="battle-progress-top"><span class="phase-label">${infinite ? 'DAÑO' : 'OLEADA'}</span><b class="progress-value">0%</b></div><div class="progress-track"><i class="wave-progress"></i><span class="progress-marker marker-10"></span><span class="progress-marker marker-20"></span><span class="progress-marker marker-30"></span><span class="progress-marker marker-40"></span><span class="progress-marker marker-50"></span><span class="progress-marker marker-60"></span><span class="progress-marker marker-70"></span><span class="progress-marker marker-80"></span><span class="progress-marker marker-90"></span></div><small class="phase-value">${infinite ? 'FASE EN CURSO' : 'PREPARACIÓN'}</small><small class="next-boss">${infinite ? '' : 'SIGUIENTE · MINIBOSS'}</small></div><div class="battle-resources"><span class="hud-resource coins-resource">${this.resourceArt('coin', 'hud-icon coin-icon')}<b class="coins-value">${run.coins}</b></span>${infinite ? '' : `<span class="hud-resource enemies-resource"><i class="hud-icon enemy-icon" aria-hidden="true">●</i><b class="enemy-count">0/${run.totalEnemies}</b></span>`}</div></header><section class="battle-layout"><div class="game-field"><canvas id="battle-canvas" width="540" height="640"></canvas><div class="boss-hud" id="boss-hud"><div><strong class="boss-name">THE TITAN</strong><span class="boss-health-label">100%</span></div><div class="boss-health-track"><i class="boss-progress"></i></div></div><div class="field-hint" id="field-hint">Mantén y arrastra hasta una zona verde</div><div class="boss-warning" id="boss-warning"><span>MINIBOSS</span><strong>THE TITAN</strong></div></div><aside class="battle-side"><div class="tower-shop"><div class="section-label"><span>DEFENSAS</span><small>ARRASTRA AL MAPA</small></div><div class="tower-cards">${Object.values(GAME_CONFIG.towers).map((tower) => `<button class="tower-card" data-tower="${tower.id}" title="Arrastra para colocar o evolucionar" style="--rarity-color:${tower.rarityColor}"><span class="tower-art" style="--tower-color:${tower.color}">${this.towerArt(tower.id)}</span><span><strong>${tower.shortName}</strong><small>${tower.name} · NIVEL ${this.game.towerLevel(tower.id)}</small></span><em>${this.resourceArt('coin', 'hud-icon coin-icon')}${tower.cost}</em></button>`).join('')}</div></div><div class="clicker-zone"><div class="clicker-currency">${this.resourceArt('coin', 'hud-icon coin-icon')}<b class="coins-value">${run.coins}</b></div><div class="clicker-card"><button class="clicker-button" id="clicker-button" aria-label="CLICKER ×${currentClickValue}"><span class="clicker-title">CLICKER</span><strong>×<b class="click-value">${currentClickValue}</b></strong></button></div><button class="upgrade-clicker" id="upgrade-clicker" aria-label="MEJORAR a ×${nextClickValue} por ◆ ${clickerCost}"><strong>MEJORAR <span aria-hidden="true">→</span> ×<b class="clicker-next-level">${nextClickValue}</b></strong><span class="clicker-price">${this.resourceArt('coin', 'hud-icon coin-icon')}<b class="clicker-cost">${clickerCost}</b></span></button></div><div class="tower-panel" id="tower-panel"></div></aside></section><div class="shop-drag-preview" id="shop-drag-preview" aria-hidden="true"></div><div class="feedback" id="feedback"></div><div class="upgrade-overlay" id="upgrade-overlay"></div><div class="result-overlay" id="result-overlay"></div></main>`;
+    this.app.innerHTML = `<main class="app-shell battle-screen ${infinite ? 'infinite-battle' : ''} ${test ? 'test-battle' : ''}"><header class="battle-header"><button class="icon-button back-map" aria-label="Volver al mapa">‹</button><div class="battle-title"><h1>${battleLabel}</h1></div><div class="battle-progress"><div class="battle-progress-top"><span class="phase-label">${infinite ? 'DAÑO' : test ? 'PRUEBA' : 'OLEADA'}</span><b class="progress-value">0%</b></div><div class="progress-track"><i class="wave-progress"></i><span class="progress-marker marker-10"></span><span class="progress-marker marker-20"></span><span class="progress-marker marker-30"></span><span class="progress-marker marker-40"></span><span class="progress-marker marker-50"></span><span class="progress-marker marker-60"></span><span class="progress-marker marker-70"></span><span class="progress-marker marker-80"></span><span class="progress-marker marker-90"></span></div><small class="phase-value">${infinite ? 'FASE EN CURSO' : test ? 'SIN OLEADAS AUTOMÁTICAS' : 'PREPARACIÓN'}</small><small class="next-boss">${infinite || test ? '' : 'SIGUIENTE · MINIBOSS'}</small></div><div class="battle-resources"><span class="hud-resource coins-resource">${this.resourceArt('coin', 'hud-icon coin-icon')}<b class="coins-value">${run.coins}</b></span>${infinite ? '' : `<span class="hud-resource enemies-resource"><i class="hud-icon enemy-icon" aria-hidden="true">●</i><b class="enemy-count">${test ? '0' : `0/${run.totalEnemies}`}</b></span>`}</div></header><section class="battle-layout"><div class="game-field"><canvas id="battle-canvas" width="540" height="640"></canvas><div class="boss-hud" id="boss-hud"><div><strong class="boss-name">THE TITAN</strong><span class="boss-health-label">100%</span></div><div class="boss-health-track"><i class="boss-progress"></i></div></div><div class="field-hint" id="field-hint">Mantén y arrastra hasta una zona verde</div><div class="boss-warning" id="boss-warning"><span>MINIBOSS</span><strong>THE TITAN</strong></div></div><aside class="battle-side"><div class="tower-shop"><div class="section-label"><span>DEFENSAS</span><small>${test ? 'TODAS DISPONIBLES · GRATIS' : 'ARRASTRA AL MAPA'}</small></div><div class="tower-cards">${Object.values(GAME_CONFIG.towers).map((tower) => `<button class="tower-card" data-tower="${tower.id}" title="Arrastra para colocar o evolucionar" style="--rarity-color:${tower.rarityColor}"><span class="tower-art" style="--tower-color:${tower.color}">${this.towerArt(tower.id)}</span><span><strong>${tower.shortName}</strong><small>${tower.name} · NIVEL ${this.game.towerLevel(tower.id)}</small></span><em>${test ? 'GRATIS' : `${this.resourceArt('coin', 'hud-icon coin-icon')}${tower.cost}`}</em></button>`).join('')}</div></div><div class="clicker-zone"><div class="clicker-currency">${this.resourceArt('coin', 'hud-icon coin-icon')}<b class="coins-value">${run.coins}</b></div><div class="clicker-card"><button class="clicker-button" id="clicker-button" aria-label="CLICKER ×${currentClickValue}"><span class="clicker-title">CLICKER</span><strong>×<b class="click-value">${currentClickValue}</b></strong></button></div><button class="upgrade-clicker" id="upgrade-clicker" aria-label="MEJORAR a ×${nextClickValue} por ◆ ${clickerCost}"><strong>MEJORAR <span aria-hidden="true">→</span> ×<b class="clicker-next-level">${nextClickValue}</b></strong><span class="clicker-price">${this.resourceArt('coin', 'hud-icon coin-icon')}<b class="clicker-cost">${clickerCost}</b></span></button></div><div class="tower-panel" id="tower-panel"></div>${test ? this.testPanelMarkup(run) : ''}</aside></section><div class="shop-drag-preview" id="shop-drag-preview" aria-hidden="true"></div><div class="feedback" id="feedback"></div><div class="upgrade-overlay" id="upgrade-overlay"></div><div class="result-overlay" id="result-overlay"></div></main>`;
     this.app.querySelectorAll('.tower-card').forEach((card) => {
       const tower = GAME_CONFIG.towers[card.dataset.tower];
       const cost = towerCost(card.dataset.tower, this.game.towerLevel(card.dataset.tower));
       const price = card.querySelector('em');
-      if (tower && price) price.innerHTML = `${this.resourceArt('coin', 'hud-icon coin-icon')}${cost}`;
+      if (tower && price) price.innerHTML = run.testMode ? 'GRATIS' : `${this.resourceArt('coin', 'hud-icon coin-icon')}${cost}`;
     });
     this.canvas = this.app.querySelector('#battle-canvas');
     this.ctx = this.canvas?.getContext('2d') || null;
@@ -367,6 +384,21 @@ export class UIManager {
     }
     console.log('HUD mounted', { hud: Boolean(this.app.querySelector('.battle-side')), gameField: Boolean(this.app.querySelector('.game-field')) });
     return true;
+  }
+
+  testPanelMarkup(run) {
+    const enemies = [['normal', 'BÁSICO'], ['runner', 'CORREDOR'], ['tank', 'TANQUE'], ['armored', 'BLINDADO'], ['regenerator', 'REGENERADOR'], ['mini', 'MINIJEFE'], ['boss', 'JEFE FINAL']];
+    const selected = run.enemies.find((enemy) => enemy.id === run.selectedEnemyId);
+    return `<section class="test-panel" aria-label="Controles del modo de prueba"><div class="test-panel-head"><strong>HERRAMIENTAS DE PRUEBA</strong><button class="test-collapse" type="button">⌃</button></div><div class="test-panel-body"><div class="test-enemy-buttons">${enemies.map(([kind, label]) => `<button type="button" class="test-enemy-button" data-test-enemy="${kind}">${label}</button>`).join('')}</div><div class="test-actions"><button type="button" data-test-action="pause">PAUSAR</button><button type="button" data-test-action="clear">LIMPIAR</button><button type="button" data-test-action="reset">REINICIAR</button></div><label class="test-option">NIVEL PERMANENTE <select data-test-setting="permanent">${Array.from({ length: 10 }, (_, i) => `<option value="${i + 1}" ${run.testPermanentLevel === i + 1 ? 'selected' : ''}>${i + 1}</option>`).join('')}</select></label><label class="test-option">DIFICULTAD <select data-test-setting="difficulty"><option value="easy" ${run.testDifficulty === 'easy' ? 'selected' : ''}>FÁCIL</option><option value="normal" ${run.testDifficulty === 'normal' ? 'selected' : ''}>NORMAL</option><option value="hard" ${run.testDifficulty === 'hard' ? 'selected' : ''}>DIFÍCIL</option><option value="extreme" ${run.testDifficulty === 'extreme' ? 'selected' : ''}>EXTREMA</option></select></label><label class="test-option test-check"><input type="checkbox" data-test-setting="invulnerable" ${run.testInvulnerable ? 'checked' : ''}> REFUGIO INVULNERABLE</label><div class="test-inspection" data-test-inspection>${selected ? `<strong>${selected.name}</strong><span>VIDA ${Math.ceil(selected.hp)} / ${Math.ceil(selected.maxHp)}</span><small>${this.testStatesLabel(selected)}</small>` : 'Selecciona un enemigo en el campo para inspeccionarlo.'}</div></div></section>`;
+  }
+
+  testStatesLabel(enemy) {
+    const states = [];
+    if (enemy.freezeTimer > 0) states.push(`CONGELADO ${enemy.freezeTimer.toFixed(1)}s`);
+    if (enemy.slowTimer > 0) states.push(`RALENTIZADO ${Math.round((1 - enemy.slowFactor) * 100)}%`);
+    if (enemy.burn) states.push(`QUEMADO ${enemy.burn.duration.toFixed(1)}s`);
+    if (enemy.regenSuppressed > 0) states.push('REGEN BLOQUEADA');
+    return states.join(' · ') || 'Sin estados';
   }
 
   configureCanvas() {
@@ -485,6 +517,27 @@ export class UIManager {
       drag.lastValidPoint = null;
       this.updateShopDragPreview(event);
     }));
+    if (this.game.run.testMode) {
+      this.app.querySelectorAll('[data-test-enemy]').forEach((button) => button.addEventListener('pointerdown', (event) => {
+        event.preventDefault(); event.stopPropagation(); this.game.enemies.spawn(button.dataset.testEnemy, { pathIndex: 0 }); this.render();
+      }));
+      this.app.querySelectorAll('[data-test-action]').forEach((button) => button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const action = button.dataset.testAction;
+        if (action === 'pause') this.game.setTestPaused(!this.game.run.paused);
+        if (action === 'clear') this.game.clearTestEntities();
+        if (action === 'reset') this.game.resetTest();
+        this.render();
+      }));
+      this.app.querySelectorAll('[data-test-setting]').forEach((control) => control.addEventListener('change', (event) => {
+        event.stopPropagation();
+        if (control.dataset.testSetting === 'permanent') this.game.run.testPermanentLevel = Number(control.value);
+        if (control.dataset.testSetting === 'difficulty') this.game.run.testDifficulty = control.value;
+        if (control.dataset.testSetting === 'invulnerable') this.game.run.testInvulnerable = control.checked;
+        this.render();
+      }));
+      this.app.querySelector('.test-collapse')?.addEventListener('click', (event) => { event.stopPropagation(); this.app.querySelector('.test-panel')?.classList.toggle('collapsed'); });
+    }
     this.app.querySelector('.battle-side').addEventListener('pointerdown', (event) => {
       if (!event.target.closest('.tower-panel')) this.game.towers.select(null);
     });
@@ -614,6 +667,11 @@ export class UIManager {
       run.drag = { mode: 'place', type: run.placingType, level: run.placingLevel || 1, pointerId: event.pointerId, moved: false, point, fromShop: false, inCanvas: true, pointerValid: valid, pointerPoint: point, lastValidPoint: valid ? { ...point } : null };
       run.placementPreview = valid ? { ...point } : null;
       return;
+    }
+    if (run.testMode) {
+      const enemy = run.enemies.find((item) => item.alive && Math.hypot(enemyPosition(item).x - point.x, enemyPosition(item).y - point.y) < item.radius + 12);
+      if (enemy) { run.selectedEnemyId = enemy.id; this.game.towers.select(null); this.render(); return; }
+      run.selectedEnemyId = null;
     }
     const tower = run.towers.find((item) => Math.hypot(item.x - point.x, item.y - point.y) < 30);
     if (!tower) { this.game.towers.select(null); run.mergeTargetId = null; return; }
@@ -755,6 +813,9 @@ export class UIManager {
       const affordable = run.coins >= towerCost(card.dataset.tower, this.game.towerLevel(card.dataset.tower));
       card.classList.toggle('insufficient', !affordable);
       card.setAttribute('aria-disabled', String(!affordable));
+      const tower = GAME_CONFIG.towers[card.dataset.tower];
+      const label = card.querySelector('small');
+      if (tower && label) label.textContent = `${tower.name} · NIVEL ${this.game.towerLevel(tower.id)}`;
     });
     const upgradeButton = this.app.querySelector('#upgrade-clicker');
     if (upgradeButton) {
@@ -770,14 +831,21 @@ export class UIManager {
     const warning = this.app.querySelector('#boss-warning'); if (warning) { warning.classList.toggle('visible', run.bossActive || run.miniBossActive); const label = warning.querySelector('span'); const title = warning.querySelector('strong'); if (label) label.textContent = run.bossActive ? 'BOSS FINAL' : 'MINIBOSS'; if (title) title.textContent = run.bossActive ? 'THE TITAN' : 'MINI JEFE'; }
     const bossHud = this.app.querySelector('#boss-hud'); const boss = run.enemies.find((enemy) => enemy.alive && (enemy.kind === 'boss' || enemy.kind === 'mini')); if (bossHud) { bossHud.classList.toggle('visible', Boolean(boss)); if (boss) { const ratio = Math.max(0, Math.min(1, boss.hp / boss.maxHp)); const bossBar = bossHud.querySelector('.boss-progress'); if (bossBar) bossBar.style.width = `${ratio * 100}%`; const bossName = bossHud.querySelector('.boss-name'); if (bossName) bossName.textContent = boss.kind === 'boss' ? 'THE TITAN' : 'MINI JEFE'; const bossLabel = bossHud.querySelector('.boss-health-label'); if (bossLabel) bossLabel.textContent = `${Math.ceil(ratio * 100)}%`; } }
     const hint = this.app.querySelector('#field-hint'); if (hint) { hint.textContent = run.placingType ? (run.mergeTargetId ? 'FUSIÓN DIRECTA · suelta para evolucionar' : 'Arrastra · verde coloca · el camino bloquea') : run.drag?.mode === 'merge' ? (run.drag.ready ? 'Suelta sobre una defensa igual para evolucionar' : 'Mantén pulsada para fusionar') : 'Toca una defensa para ver sus datos'; hint.classList.toggle('visible', Boolean(run.placingType || run.drag?.mode === 'merge')); }
+    const testInspection = this.app.querySelector('[data-test-inspection]');
+    if (testInspection && run.testMode) {
+      const inspected = run.enemies.find((enemy) => enemy.id === run.selectedEnemyId && enemy.alive);
+      testInspection.innerHTML = inspected ? `<strong>${inspected.name}</strong><span>VIDA ${Math.ceil(inspected.hp)} / ${Math.ceil(inspected.maxHp)}</span><small>${this.testStatesLabel(inspected)}</small>` : 'Selecciona un enemigo en el campo para inspeccionarlo.';
+      const pauseButton = this.app.querySelector('[data-test-action="pause"]'); if (pauseButton) pauseButton.textContent = run.paused ? 'REANUDAR' : 'PAUSAR';
+    }
     const panel = this.app.querySelector('#tower-panel');
     const selected = run.towers.find((tower) => tower.id === run.selectedTowerId);
     if (selected) {
       const stats = getTowerStats(selected.type, selected.level, run.buffs, this.game.towerLevel(selected.type));
       const canMerge = selected.level < 5 && run.towers.some((tower) => tower.id !== selected.id && tower.type === selected.type && tower.level === selected.level);
-      const panelKey = `${selected.id}:${selected.level}:${canMerge}:${selected.priority}:${JSON.stringify(run.buffs)}`;
+      const sameGradeCount = run.towers.filter((tower) => tower.type === selected.type && tower.level === selected.level).length;
+      const panelKey = `${selected.id}:${selected.level}:${sameGradeCount}:${canMerge}:${selected.priority}:${JSON.stringify(run.buffs)}`;
       if (panel && panelKey !== this.selectedPanelKey) {
-        panel.innerHTML = `<div class="selected-tower"><div class="selected-heading"><span class="tower-icon tower-art" style="--tower-color:${stats.color}">${this.towerArt(selected.type)}</span><div><span class="eyebrow">EVOLUCIÓN DE PARTIDA</span><h3>${stats.name} <b>EVOLUCIÓN ${selected.level}</b></h3><small>NIVEL PERMANENTE ${this.game.towerLevel(selected.type)}</small></div><button class="panel-close" aria-label="Cerrar información">×</button></div><div class="selected-stats"><span><small>DAÑO</small><b>${stats.damage}</b></span><span><small>CADENCIA</small><b>${stats.cooldown.toFixed(2)}s</b></span><span><small>ALCANCE</small><b>${Math.round(stats.range)}</b></span></div><div class="tower-action-row"><button data-action="permanent">NIVEL MENÚ</button><button data-action="sell">VENDER</button><button data-action="ability">HABILIDAD</button></div><div class="priority-row"><span>OBJETIVO</span><select class="priority-select"><option value="first">PRIMERO</option><option value="last">ÚLTIMO</option><option value="strong">FUERTE</option><option value="weak">DÉBIL</option><option value="boss">JEFE</option></select></div><button class="merge-button" ${canMerge ? '' : 'disabled'}>EVOLUCIONAR <span>${canMerge ? '◆ LISTA' : '—'}</span></button></div>`;
+        panel.innerHTML = `<div class="selected-tower"><div class="selected-heading"><span class="tower-icon tower-art" style="--tower-color:${stats.color}">${this.towerArt(selected.type)}</span><div><span class="eyebrow">EVOLUCIÓN DE PARTIDA</span><h3>${stats.name} <b>EVOLUCIÓN ${selected.level}</b></h3><small>NIVEL PERMANENTE ${this.game.towerLevel(selected.type)} · CAMPO ${sameGradeCount}/2</small></div><button class="panel-close" aria-label="Cerrar información">×</button></div><div class="selected-stats"><span><small>DAÑO</small><b>${stats.displayDamage}</b></span><span><small>CADENCIA</small><b>${stats.cooldown.toFixed(2)}s</b></span><span><small>ALCANCE</small><b>${Math.round(stats.range)}</b></span></div><div class="tower-action-row"><button data-action="permanent">NIVEL MENÚ</button><button data-action="sell">VENDER</button><button data-action="ability">HABILIDAD</button></div><div class="priority-row"><span>OBJETIVO</span><select class="priority-select"><option value="first">PRIMERO</option><option value="last">ÚLTIMO</option><option value="strong">FUERTE</option><option value="weak">DÉBIL</option><option value="boss">JEFE</option></select></div><button class="merge-button" ${canMerge ? '' : 'disabled'}>EVOLUCIONAR <span>${canMerge ? `◆ LISTA · ${sameGradeCount}/2` : `${sameGradeCount}/2 · —`}</span></button></div>`;
         panel.querySelector('.panel-close').addEventListener('click', () => this.game.towers.select(null));
         panel.querySelector('.priority-select').value = selected.priority; panel.querySelector('.priority-select').addEventListener('change', (event) => { selected.priority = event.target.value; });
         panel.querySelector('.merge-button').addEventListener('click', () => { if (canMerge) this.game.feedback('Mantén pulsada la defensa y arrástrala sobre otra igual', 'merge'); });
@@ -902,19 +970,22 @@ export class UIManager {
     }
     if (run.mergeFx && run.mergeFx.until > performance.now()) this.drawMergeEffect(ctx, run);
     for (const tower of run.towers) { const stats = getTowerStats(tower.type, tower.level, run.buffs, this.game.towerLevel(tower.type)); const isTarget = tower.id === run.mergeTargetId; const fx = run.mergeFx && tower.id === run.mergeFx.resultId ? this.mergeProgress(run.mergeFx) : null; const animation = fx ? { scale: .72 + fx * .28, alpha: .45 + fx * .55, lift: (1 - fx) * 6 } : {}; animation.mergeable = run.mergeableTowerIds?.has(tower.id); this.drawTower(ctx, tower, stats, tower.id === run.selectedTowerId, isTarget, animation); }
+    for (const fire of run.groundFires || []) { ctx.fillStyle = `rgba(238, 105, 39, ${Math.min(.35, fire.duration / 6)})`; ctx.beginPath(); ctx.arc(fire.x, fire.y, fire.radius, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#f3a64d'; ctx.lineWidth = 2; ctx.stroke(); }
     for (const enemy of run.enemies) {
       if (!enemy.alive) continue;
       const p = enemyPosition(enemy);
-      if (enemy.slowTimer > 0 || enemy.freezeTimer > 0) {
-        ctx.strokeStyle = enemy.freezeTimer > 0 ? '#e8fbff' : '#8fe7ff';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, enemy.radius + 5 + Math.sin(enemy.pulse * 7) * 1.5, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      ctx.fillStyle = enemy.color; ctx.beginPath(); ctx.arc(p.x, p.y, enemy.radius, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#332e25'; ctx.beginPath(); ctx.arc(p.x - 4, p.y - 2, 2.2, 0, Math.PI * 2); ctx.arc(p.x + 4, p.y - 2, 2.2, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = 'rgba(31, 48, 26, .7)'; ctx.fillRect(p.x - enemy.radius, p.y - enemy.radius - 8, enemy.radius * 2, 3); ctx.fillStyle = enemy.kind === 'boss' ? '#b9342c' : '#d8e78d'; ctx.fillRect(p.x - enemy.radius, p.y - enemy.radius - 8, enemy.radius * 2 * Math.max(0, enemy.hp / enemy.maxHp), 3); if (enemy.kind === 'mini' || enemy.kind === 'boss') { ctx.strokeStyle = enemy.kind === 'boss' ? '#b9342c' : '#8b5da5'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, enemy.radius + 5 + Math.sin(enemy.pulse * 4) * 2, 0, Math.PI * 2); ctx.stroke(); }
+      if (enemy.slowTimer > 0 || enemy.freezeTimer > 0) { ctx.strokeStyle = enemy.freezeTimer > 0 ? '#e8fbff' : '#8fe7ff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(p.x, p.y, enemy.radius + 5 + Math.sin(enemy.pulse * 7) * 1.5, 0, Math.PI * 2); ctx.stroke(); }
+      if (enemy.freezeTimer > 0) { ctx.fillStyle = 'rgba(184, 239, 255, .5)'; ctx.beginPath(); ctx.arc(p.x, p.y, enemy.radius + 3, 0, Math.PI * 2); ctx.fill(); for (let i = 0; i < 4; i += 1) { const a = i * Math.PI / 2; ctx.fillStyle = '#e8fbff'; ctx.fillRect(p.x + Math.cos(a) * (enemy.radius + 6) - 2, p.y + Math.sin(a) * (enemy.radius + 6) - 2, 4, 4); } }
+      ctx.fillStyle = enemy.color; ctx.beginPath(); ctx.arc(p.x, p.y, enemy.radius, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = enemy.kind === 'armored' ? '#d7e5ed' : enemy.kind === 'regenerator' ? '#b0f0a7' : enemy.kind === 'boss' ? '#b9342c' : enemy.kind === 'mini' ? '#8b5da5' : 'rgba(50,45,35,.45)'; ctx.lineWidth = enemy.kind === 'armored' || enemy.kind === 'boss' || enemy.kind === 'mini' ? 3 : 1.5; ctx.stroke();
+      ctx.fillStyle = '#332e25'; ctx.font = '900 9px Arial'; ctx.textAlign = 'center'; ctx.fillText(enemy.indicator || '●', p.x, p.y + 3);
+      if (enemy.burn) { ctx.fillStyle = '#ffad45'; ctx.beginPath(); ctx.arc(p.x + enemy.radius * .7, p.y - enemy.radius * .7, 4 + Math.sin(enemy.pulse * 12), 0, Math.PI * 2); ctx.fill(); }
+      if (enemy.regenRate && enemy.regenSuppressed <= 0) { ctx.fillStyle = '#a8e78e'; ctx.font = '900 12px Arial'; ctx.fillText('+', p.x - enemy.radius - 5, p.y - enemy.radius - 3); }
+      if (enemy.regenSuppressed > 0) { ctx.fillStyle = '#fff0b0'; ctx.font = '900 9px Arial'; ctx.fillText('×REGEN', p.x, p.y + enemy.radius + 18); }
+      ctx.fillStyle = 'rgba(31, 48, 26, .7)'; ctx.fillRect(p.x - enemy.radius, p.y - enemy.radius - 8, enemy.radius * 2, 3); ctx.fillStyle = enemy.kind === 'boss' ? '#b9342c' : '#d8e78d'; ctx.fillRect(p.x - enemy.radius, p.y - enemy.radius - 8, enemy.radius * 2 * Math.max(0, enemy.hp / enemy.maxHp), 3);
+      if (enemy.id === run.selectedEnemyId) { ctx.strokeStyle = '#fff0a6'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(p.x, p.y, enemy.radius + 10, 0, Math.PI * 2); ctx.stroke(); }
     }
-    for (const projectile of run.projectiles) { const t = 1 - projectile.life / projectile.maxLife; const x = projectile.from.x + (projectile.to.x - projectile.from.x) * t; const y = projectile.from.y + (projectile.to.y - projectile.from.y) * t; ctx.fillStyle = projectile.towerType === 'flame' ? '#ec7a35' : '#f3d27c'; ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill(); }
+    for (const projectile of run.projectiles) { const t = 1 - projectile.life / projectile.maxLife; const x = projectile.from.x + (projectile.to.x - projectile.from.x) * t; const y = projectile.from.y + (projectile.to.y - projectile.from.y) * t; ctx.strokeStyle = projectile.towerType === 'mortar' ? 'rgba(255,235,165,.45)' : '#f3d27c'; ctx.lineWidth = projectile.towerType === 'mortar' ? 2 : 1; ctx.beginPath(); ctx.moveTo(projectile.from.x, projectile.from.y); ctx.lineTo(x, y); ctx.stroke(); ctx.fillStyle = projectile.towerType === 'flame' ? '#ec7a35' : projectile.towerType === 'mortar' ? '#f3a64d' : '#f3d27c'; ctx.beginPath(); ctx.arc(x, y, projectile.towerType === 'mortar' ? 6 : 4, 0, Math.PI * 2); ctx.fill(); }
   }
 
   mergeProgress(effect) { return Math.min(1, Math.max(0, 1 - (effect.until - performance.now()) / (effect.until - effect.started))); }

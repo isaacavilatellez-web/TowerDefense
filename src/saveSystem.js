@@ -2,6 +2,7 @@ const KEY = 'dead-sector-defense-save-v1';
 const MAX_LEVEL = 30;
 
 const DEFAULT_SAVE = {
+  saveVersion: 2,
   currentLevel: 1,
   mapLevel: 1,
   completedLevels: [],
@@ -51,6 +52,7 @@ function normalizeSave(value) {
   return {
     ...freshSave(),
     ...data,
+    saveVersion: 2,
     currentLevel: Number.isFinite(Number(data.currentLevel))
       ? Math.min(MAX_LEVEL, Math.max(1, Math.floor(Number(data.currentLevel))))
       : 1,

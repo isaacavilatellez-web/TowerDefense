@@ -9,7 +9,7 @@ export class TowerManager {
     if (this.game.run?.placingType) return false;
     const level = 1;
     const cost = towerCost(type, this.game.towerLevel(type));
-    if (this.game.run.coins < cost) return false;
+    if (!this.game.run.unlimitedCoins && this.game.run.coins < cost) return false;
     this.game.run.placingType = type;
     this.game.run.placingLevel = level;
     this.game.run.selectedTowerId = null;
@@ -30,6 +30,7 @@ export class TowerManager {
     run.drag = null;
     run.mergeTargetId = null;
     run.mergeableTowerIds = new Set();
+    run.mergeFx = null;
     return true;
   }
 
@@ -37,8 +38,8 @@ export class TowerManager {
     const run = this.game.run;
     if (!point || !run.placingType || !this.canPlaceAt(point)) return false;
     const cost = towerCost(run.placingType, run.placingLevel || 1);
-    if (run.coins < cost) return false;
-    run.coins -= cost;
+    if (!run.unlimitedCoins && run.coins < cost) return false;
+    if (!run.unlimitedCoins) run.coins -= cost;
     const tower = { id: `tower-${Date.now()}-${Math.random()}`, type: run.placingType, level: run.placingLevel || 1, x: point.x, y: point.y, cooldown: 0, priority: 'first' };
     run.towers.push(tower);
     run.placingType = null;
@@ -132,6 +133,9 @@ export class TowerManager {
 
   getPlacementValidation(point, type = this.game.run?.placingType) {
     if (!this.game.run || !point || !type) return { valid: false, reason: 'missing' };
+    const level = this.game.run.placingLevel || 1;
+    const sameGrade = this.game.run.towers.filter((tower) => tower.type === type && tower.level === level).length;
+    if (sameGrade >= 2) return { valid: false, reason: 'limit' };
     const collision = this.getPlacementCollision(point, type);
     return collision ? { valid: false, reason: collision.reason } : { valid: true, reason: 'terrain' };
   }
@@ -200,6 +204,8 @@ export class TowerManager {
     const sourcePosition = { x: a.x, y: a.y };
     const destinationPosition = { x: b.x, y: b.y };
     const sourceLevel = a.level;
+    const nextLevelCount = towers.filter((item) => item.type === a.type && item.level === sourceLevel + 1).length;
+    if (nextLevelCount >= 2) return false;
     b.level += 1;
     b.cooldown = 0;
     this.game.run.towers = towers.filter((item) => item.id !== a.id);
@@ -216,8 +222,10 @@ export class TowerManager {
     const level = run.placingLevel || 1;
     if (!run.placingType || run.placingType !== type || !target || target.type !== type || target.level !== level || target.level >= 5) return false;
     const cost = towerCost(type, this.game.towerLevel(type));
-    if (run.coins < cost) return false;
-    run.coins -= cost;
+    if (!run.unlimitedCoins && run.coins < cost) return false;
+    const nextLevelCount = run.towers.filter((item) => item.id !== target.id && item.type === type && item.level === level + 1).length;
+    if (nextLevelCount >= 2) return false;
+    if (!run.unlimitedCoins) run.coins -= cost;
     const sourceLevel = target.level;
     target.level += 1;
     target.cooldown = 0;
@@ -240,9 +248,10 @@ export class TowerManager {
       const stats = getTowerStats(tower.type, tower.level, this.game.run.buffs, this.game.towerLevel(tower.type));
       const targets = this.game.run.enemies.filter((enemy) => enemy.alive && this.inRange(tower, enemy, stats.range));
       if (!targets.length) continue;
-      const target = this.pickTarget(targets, tower.priority);
+      const target = this.pickTarget(targets, tower.priority, stats);
       this.fire(tower, target, stats);
-      tower.cooldown = stats.cooldown;
+      tower.cooldown = stats.rotating ? Math.max(stats.maxCooldown, stats.cooldown - (tower.fireStreak || 0) * .015) : stats.cooldown;
+      tower.fireStreak = stats.rotating ? Math.min(8, (tower.fireStreak || 0) + 1) : 0;
     }
   }
 
@@ -251,7 +260,11 @@ export class TowerManager {
     return Math.hypot(position.x - tower.x, position.y - tower.y) <= range;
   }
 
-  pickTarget(targets, priority) {
+  pickTarget(targets, priority, stats = {}) {
+    if (stats.bossPriority) {
+      const resistant = targets.find((item) => item.kind === 'boss' || item.kind === 'mini' || item.kind === 'tank');
+      if (resistant) return resistant;
+    }
     if (priority === 'strong') return [...targets].sort((a, b) => b.hp - a.hp)[0];
     if (priority === 'weak') return [...targets].sort((a, b) => a.hp - b.hp)[0];
     if (priority === 'boss') return targets.find((item) => item.kind === 'boss' || item.kind === 'mini') || targets[0];
@@ -261,6 +274,24 @@ export class TowerManager {
 
   fire(tower, target, stats) {
     const position = enemyPosition(target);
-    this.game.run.projectiles.push({ from: { x: tower.x, y: tower.y }, to: position, targetId: target.id, towerType: tower.type, damage: stats.damage, splash: stats.splash, chain: stats.chain, chainRange: stats.chainRange, chainDamage: stats.chainDamage, slowFactor: stats.slowFactor, slowDuration: stats.slowDuration, freezeDuration: stats.freezeDuration, life: 0.16, maxLife: 0.16 });
+    const count = tower.type === 'gunner' ? stats.barrels : tower.type === 'mortar' || tower.type === 'cannon' ? stats.salvo : 1;
+    const candidates = stats.smartAssignment ? this.pickSalvoTargets(tower, target, stats, count) : Array.from({ length: count }, () => target);
+    candidates.forEach((assigned, index) => {
+      const destination = enemyPosition(assigned);
+      this.game.run.projectiles.push({
+        from: { x: tower.x, y: tower.y }, to: destination, targetId: assigned.id, towerType: tower.type, damage: stats.damage,
+        splash: stats.splash, chain: stats.chain, chainRange: stats.chainRange, chainDamages: stats.chainDamages, chainFalloff: stats.chainFalloff,
+        slowFactor: stats.slowFactor, slowDuration: stats.slowDuration, freezeDuration: stats.freezeDuration, vulnerability: stats.vulnerability,
+        electricSlow: stats.electricSlow, electricSlowDuration: stats.electricSlowDuration, burnDuration: stats.burnDuration, regenReduction: stats.regenReduction,
+        groundFire: stats.groundFire, coneAngle: stats.coneAngle, coneOrigin: { x: tower.x, y: tower.y }, edgeFalloff: stats.edgeFalloff,
+        reassign: stats.reassign, range: stats.range, life: .16 + index * .018, maxLife: .16 + index * .018,
+      });
+    });
+  }
+
+  pickSalvoTargets(tower, primary, stats, count) {
+    const targets = this.game.run.enemies.filter((enemy) => enemy.alive && this.inRange(tower, enemy, stats.range));
+    const pool = targets.length ? [...targets].sort((a, b) => (stats.bossPriority ? Number(b.kind === 'boss' || b.kind === 'mini') - Number(a.kind === 'boss' || a.kind === 'mini') : b.progress - a.progress)) : [primary];
+    return Array.from({ length: count }, (_, index) => pool[index % pool.length] || primary);
   }
 }

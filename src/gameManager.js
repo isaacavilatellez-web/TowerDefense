@@ -11,6 +11,7 @@ import { LevelManager } from './levelManager.js';
 import { AudioManager } from './audioManager.js';
 import { getWavePlan } from './levelData.js';
 import { InfiniteManager } from './infiniteManager.js';
+import { enemyPosition, canonicalEnemyKind } from './enemyData.js';
 
 export class GameManager {
   constructor(ui) {
@@ -49,7 +50,7 @@ export class GameManager {
         baseHp: GAME_CONFIG.levels.startingBaseHp, baseMaxHp: GAME_CONFIG.levels.startingBaseHp,
         coins: GAME_CONFIG.economy.startingCoins, clickerLevel: 1, autoCoins: 0, autoCoinTimer: 0,
         clicks: 0,
-        towers: [], enemies: [], projectiles: [], nextEnemyId: 1,
+        towers: [], enemies: [], projectiles: [], groundFires: [], nextEnemyId: 1,
         difficulty,
         wavePlan, phaseIndex: -1, phase: null, phaseSpawned: 0, phaseKills: 0, phaseLeaks: 0, phaseLabel: 'PREPARACIÓN', phaseTimer: 0, phaseCountdown: 0, waveNumber: 0,
         totalEnemies: wavePlan.filter((phase) => phase.type === 'wave').reduce((sum, phase) => sum + phase.enemies, 0), totalWaves: wavePlan.filter((phase) => phase.type === 'wave').length,
@@ -109,7 +110,7 @@ export class GameManager {
       coins: options.coins ?? config.reconstructionCoins,
       clickerLevel: options.clickerLevel ?? 1,
       autoCoins: 0, autoCoinTimer: 0, clicks: options.clicks ?? 0,
-      towers: options.towers ?? [], enemies: options.enemies ?? [], projectiles: options.projectiles ?? [],
+      towers: options.towers ?? [], enemies: options.enemies ?? [], projectiles: options.projectiles ?? [], groundFires: options.groundFires ?? [],
       nextEnemyId: options.nextEnemyId ?? 1,
       difficulty: config, wavePlan: [], phaseIndex: 0, phase: null, phaseSpawned: 0, phaseKills: 0, phaseLeaks: 0,
       phaseLabel: 'FASE EN CURSO', phaseTimer: 0, phaseCountdown: 0, waveNumber: 0, totalEnemies: 0, totalWaves: 0,
@@ -151,6 +152,51 @@ export class GameManager {
     }
   }
 
+  createTestRun(options = {}) {
+    const level = Math.max(1, Math.min(10, Math.floor(Number(options.level) || 1)));
+    const difficulty = getLevelDifficulty(level);
+    return {
+      mode: 'test', testMode: true, level, meta: { level, name: 'Modo de prueba' }, map: options.map || MapGenerator.generate(level),
+      developerRun: true, baseHp: GAME_CONFIG.levels.startingBaseHp, baseMaxHp: GAME_CONFIG.levels.startingBaseHp,
+      testInvulnerable: Boolean(options.testInvulnerable), testPermanentLevel: Math.max(1, Math.min(10, Number(options.testPermanentLevel) || 1)),
+      testDifficulty: options.testDifficulty || 'normal', unlimitedCoins: true, coins: 999999999, clickerLevel: 1, clicks: 0,
+      autoCoins: 0, autoCoinTimer: 0, towers: [], enemies: [], projectiles: [], groundFires: [], nextEnemyId: 1,
+      difficulty, wavePlan: [], phaseIndex: 0, phase: null, phaseSpawned: 0, phaseKills: 0, phaseLeaks: 0, phaseLabel: 'PRUEBA MANUAL', phaseTimer: 0, phaseCountdown: 0, waveNumber: 0,
+      totalEnemies: 0, totalWaves: 0, spawned: 0, ambientSpawned: 0, ambientSpawnedThisPhase: 0, ambientTimer: 0, spawnTimer: 0,
+      kills: 0, leaks: 0, bossReadyTimer: 0, bossActive: false, miniBossActive: false, bossCurrencyEarned: 0, miniBosses: [], upgradeOptions: [], pausedForUpgrade: false, paused: false, buffs: {},
+      placingType: null, placingLevel: 1, selectedTowerId: null, selectedEnemyId: null, mergeTargetId: null, mergeableTowerIds: new Set(), drag: null, mergeFx: null, placementPreview: null, ended: false, result: null,
+    };
+  }
+
+  startTest(options = {}) {
+    this.stopLoop();
+    try {
+      this.run = this.createTestRun(options);
+      if (!this.ui.showBattle()) { this.run = null; return; }
+      this.ui.render();
+      this.lastTime = performance.now(); this.loopActive = true;
+      this.frame = requestAnimationFrame((time) => this.loop(time));
+    } catch (error) {
+      console.error('No se pudo iniciar el modo de prueba', error);
+      this.run = null; this.ui.showMap(); this.ui.showToast('No se pudo iniciar el modo de prueba.');
+    }
+  }
+
+  resetTest() {
+    if (!this.run?.testMode) return false;
+    const options = { level: this.run.level, testPermanentLevel: this.run.testPermanentLevel, testDifficulty: this.run.testDifficulty, testInvulnerable: this.run.testInvulnerable, map: this.run.map };
+    this.run = this.createTestRun(options); this.ui.showBattle(); this.ui.render();
+    this.lastTime = performance.now(); this.loopActive = true; this.frame = requestAnimationFrame((time) => this.loop(time));
+    return true;
+  }
+
+  clearTestEntities() {
+    if (!this.run?.testMode) return false;
+    this.run.enemies = []; this.run.projectiles = []; this.run.groundFires = []; this.run.selectedEnemyId = null; this.run.bossActive = false; this.run.miniBossActive = false; this.run.mergeFx = null; return true;
+  }
+
+  setTestPaused(paused) { if (!this.run?.testMode) return false; this.run.paused = Boolean(paused); return true; }
+
   restoreInfiniteRun(saved) {
     const phase = Math.max(1, Math.floor(Number(saved.infinitePhase) || this.save.infinite.currentPhase || 1));
     const run = this.createInfiniteRun(phase, {
@@ -158,8 +204,13 @@ export class GameManager {
       director: this.infinite.restore(saved.infiniteDirector, phase),
       coins: Number(saved.coins) || 0,
       towers: Array.isArray(saved.towers) ? saved.towers : [],
-      enemies: Array.isArray(saved.enemies) ? saved.enemies : [],
+      enemies: Array.isArray(saved.enemies) ? saved.enemies.map((enemy) => {
+        const kind = canonicalEnemyKind(enemy.kind);
+        const base = GAME_CONFIG.enemies[kind] || GAME_CONFIG.enemies.normal;
+        return { ...enemy, kind, shelterDamage: Number.isFinite(enemy.shelterDamage) || enemy.shelterDamage === Infinity ? enemy.shelterDamage : base.shelterDamage, speedRelative: enemy.speedRelative ?? base.speedRelative, armorReduction: enemy.armorReduction ?? base.armorReduction ?? 0, regenRate: enemy.regenRate ?? base.regen ?? 0, controlResistance: enemy.controlResistance ?? base.controlResistance ?? 0, freezeImmunity: enemy.freezeImmunity || 0, regenSuppressed: enemy.regenSuppressed || 0, regenReduction: enemy.regenReduction || 0, vulnerabilityTimer: enemy.vulnerabilityTimer || 0 };
+      }) : [],
       projectiles: Array.isArray(saved.projectiles) ? saved.projectiles : [],
+      groundFires: Array.isArray(saved.groundFires) ? saved.groundFires : [],
       buffs: saved.buffs && typeof saved.buffs === 'object' ? saved.buffs : {},
     });
     run.baseHp = Math.max(0, Math.min(run.baseMaxHp, Number(saved.baseHp) || run.baseMaxHp));
@@ -174,7 +225,7 @@ export class GameManager {
     this.save.infinite.activeRun = {
       infinitePhase: run.infinitePhase, level: run.level, map: run.map,
       baseHp: run.baseHp, baseMaxHp: run.baseMaxHp, coins: run.coins, clickerLevel: run.clickerLevel, clicks: run.clicks,
-      towers: run.towers, enemies: run.enemies, projectiles: run.projectiles, nextEnemyId: run.nextEnemyId,
+      towers: run.towers, enemies: run.enemies, projectiles: run.projectiles, groundFires: run.groundFires, nextEnemyId: run.nextEnemyId,
       spawned: run.spawned, buffs: run.buffs, damageDone: run.damageDone,
       infiniteDirector: this.infinite.serialize(run.infiniteDirector),
     };
@@ -226,7 +277,7 @@ export class GameManager {
     const delta = Math.min(0.05, (time - this.lastTime) / 1000);
     this.lastTime = time;
     try {
-      if (!this.run.ended && !this.run.pausedForUpgrade) this.update(delta);
+      if (!this.run.ended && !this.run.pausedForUpgrade && !this.run.paused) this.update(delta);
       this.ui.render();
       if (this.run && !this.run.ended) this.frame = requestAnimationFrame((next) => this.loop(next));
       else this.loopActive = false;
@@ -240,12 +291,16 @@ export class GameManager {
   update(delta) {
     this.economy.tick(delta);
     if (this.run.mode === 'infinite') this.infinite.tick(delta);
-    else this.waves.tick(delta);
+    else if (!this.run.testMode) this.waves.tick(delta);
     this.enemies.tick(delta);
     this.towers.tick(delta);
     for (const projectile of this.run.projectiles) {
       projectile.life -= delta;
       if (projectile.life <= 0) {
+        if (projectile.reassign && !this.run.enemies.some((enemy) => enemy.id === projectile.targetId && enemy.alive)) {
+          const replacement = this.run.enemies.filter((enemy) => enemy.alive && Math.hypot(enemyPosition(enemy).x - projectile.from.x, enemyPosition(enemy).y - projectile.from.y) <= (projectile.range || Infinity)).sort((a, b) => b.progress - a.progress)[0];
+          if (replacement) { projectile.targetId = replacement.id; projectile.to = enemyPosition(replacement); }
+        }
         this.enemies.hit(projectile.targetId, projectile.damage, projectile.splash, projectile.to, projectile);
         projectile.done = true;
       }
@@ -258,7 +313,7 @@ export class GameManager {
     }
     for (const mini of this.run.enemies.filter((enemy) => !enemy.alive && enemy.kind === 'mini' && !enemy.upgradeGiven)) {
       mini.upgradeGiven = true;
-      this.roguelike.offer();
+      if (!this.run.testMode) this.roguelike.offer();
     }
     if (this.run.baseHp <= 0) this.endRun(false);
     if (this.run.mode === 'infinite') {
@@ -271,6 +326,7 @@ export class GameManager {
     if (!this.run || this.run.ended) return;
     this.run.ended = true;
     this.run.result = victory ? 'victory' : 'defeat';
+    if (this.run.testMode) { this.ui.render(); return; }
     if (this.run.mode === 'infinite') {
       const phase = this.run.infinitePhase;
       if (victory) {
@@ -308,7 +364,10 @@ export class GameManager {
     this.ui.render();
   }
 
-  towerLevel(type) { return Math.max(1, Math.min(GAME_CONFIG.economy.permanent.maxTowerLevel, Number(this.save.towerLevels?.[type]) || 1)); }
+  towerLevel(type) {
+    if (this.run?.testMode) return this.run.testPermanentLevel;
+    return Math.max(1, Math.min(GAME_CONFIG.economy.permanent.maxTowerLevel, Number(this.save.towerLevels?.[type]) || 1));
+  }
 
   towerUpgradeCost(type) {
     const tower = GAME_CONFIG.towers[type];
@@ -376,6 +435,7 @@ export class GameManager {
       return;
     }
     const runLevel = this.run?.level;
+    if (this.run?.testMode) { this.stopLoop(); this.run = null; this.ui.showMap(); return; }
     const completedLevel = this.run?.result === 'victory' && !this.run.developerRun ? runLevel : null;
     this.stopLoop();
     this.run = null;

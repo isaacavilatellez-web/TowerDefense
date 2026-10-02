@@ -6,10 +6,12 @@ const EVENT_TABLE = [
   { id: 'runners', weight: 13, threat: 3, dangerous: false, group: ['runner', 'runner', 'runner'] },
   { id: 'mixed', weight: 13, threat: 5, dangerous: true, group: ['normal', 'runner', 'normal', 'tank'] },
   { id: 'escort', weight: 9, threat: 6, dangerous: true, group: ['tank', 'normal', 'normal'] },
+  { id: 'armor', weight: 7, threat: 5, dangerous: true, minimumPhase: 4, group: ['armored', 'runner', 'normal'] },
+  { id: 'regen', weight: 5, threat: 5, dangerous: true, minimumPhase: 5, group: ['regenerator', 'normal', 'runner'] },
   { id: 'mini', weight: 3, threat: 8, dangerous: true, minimumPhase: 3, group: ['mini', 'normal', 'runner'] },
 ];
 
-const threatFor = (kind) => ({ normal: 1, runner: 1.2, tank: 3.8, mini: 8, boss: 12 }[kind] || 1);
+const threatFor = (kind) => ({ normal: 1, runner: 1.2, tank: 3.8, armored: 2.4, regenerator: 2.6, mini: 8, boss: 12 }[kind] || 1);
 const finite = (value, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback;
 
 export class InfiniteManager {

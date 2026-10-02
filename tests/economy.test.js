@@ -81,7 +81,7 @@ test('los costes permanentes de las cuatro rarezas usan la misma tabla de PV', (
   const game = Object.create(GameManager.prototype);
   game.save = { towerLevels: { gunner: 1, flame: 1, tesla: 1, sniper: 1 }, gears: { common: 100, rare: 20, epic: 5, legendary: 1 } };
   game.economy = new EconomyManager(game);
-  assert.deepEqual(['gunner', 'flame', 'tesla', 'sniper'].map((type) => game.towerUpgradeCost(type)), [100, 20, 5, 1]);
+  assert.deepEqual(['gunner', 'flame', 'tesla', 'sniper'].map((type) => game.towerUpgradeCost(type)), [50, 10, 3, 1]);
   assert.equal(game.upgradePermanentTower('sniper'), true);
   assert.equal(game.save.gears.legendary, 0);
   assert.equal(game.towerLevel('sniper'), 2);
