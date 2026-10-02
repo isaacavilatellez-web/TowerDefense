@@ -7,7 +7,7 @@ import treeSprite from '../sprites/dec_arbol.png';
 import shrubSprite from '../sprites/dec_arbusto.png';
 import rockSprite from '../sprites/dec_roca.png';
 import gunnerSprite from '../sprites/def_amt_n1.png';
-import cannonSprite from '../sprites/def_cañ_n1.png';
+import cannonSprite from '../sprites/def_can_n1.png';
 import flameSprite from '../sprites/def_flm_n1.png';
 import sniperSprite from '../sprites/def_hie_n1.png';
 import mortarSprite from '../sprites/def_mis_n1.png';
