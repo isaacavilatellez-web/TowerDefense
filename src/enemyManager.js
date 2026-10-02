@@ -24,6 +24,7 @@ export class EnemyManager {
     for (const enemy of run.enemies) {
       if (!enemy.alive) continue;
       normalizeEnemyCombatState(enemy);
+      enemy.previousPosition = enemyPosition(enemy);
       if (enemy.hp <= 0) {
         this.kill(enemy);
         continue;
@@ -35,6 +36,10 @@ export class EnemyManager {
         this.damageEnemy(enemy, enemy.burn.damagePerSecond * seconds, { source: 'burn' });
         enemy.burn.duration -= seconds;
         if (enemy.burn.duration <= 0) enemy.burn = null;
+      }
+      if (enemy.hp <= 0) {
+        this.kill(enemy);
+        continue;
       }
       if (!enemy.alive) continue;
       if (enemy.alive && enemy.regenRate && enemy.hp > 0) {
@@ -63,6 +68,7 @@ export class EnemyManager {
         if (enemy.kind === 'boss' && run.mode !== 'test') this.game.endRun(false);
         if (run.baseHp <= 0) this.game.endRun(false);
       }
+      enemy.position = enemyPosition(enemy);
     }
     this.updateGroundFires(seconds);
     run.enemies = run.mode === 'infinite'
@@ -151,6 +157,7 @@ export class EnemyManager {
       for (const enemy of run.enemies) {
         if (!enemy.alive || Math.hypot(enemyPosition(enemy).x - fire.x, enemyPosition(enemy).y - fire.y) > fire.radius) continue;
         this.damageEnemy(enemy, fire.damagePerSecond * seconds, { source: 'ground-fire' });
+        if (enemy.hp <= 0) { this.kill(enemy); continue; }
         if (fire.regenReduction) { enemy.regenSuppressed = Math.max(enemy.regenSuppressed, Math.min(fire.duration, 1)); enemy.regenReduction = Math.max(enemy.regenReduction || 0, fire.regenReduction); }
       }
     }

@@ -34,6 +34,6 @@ La primera versión prioriza el bucle completo y deja puntos claros para añadir
 ## Sistemas de combate
 
 - El nivel permanente (1–10) sólo modifica daño con `1.10^(nivel-1)` y usa los costes PV `[50, 150, 400, 1000, 2500, 6000, 15000, 30000, 60000]`, convertidos a engranajes con la rareza actual. Las evoluciones de campo (1–5) son temporales.
-- Cada tipo y evolución admite como máximo dos defensas. Las fusiones validan el estado final antes de cobrar o retirar una carta.
+- Cada tipo y evolución admite como máximo tres defensas. Las fusiones validan el estado final antes de cobrar o retirar una carta.
 - Los enemigos usan daño fijo al refugio, blindaje, regeneración y estados centralizados; el jefe final destruye el refugio al llegar.
 - `Modo de prueba` reutiliza el campo y el motor normal, permite generar los siete tipos manualmente, pausar, limpiar, reiniciar, variar nivel/dificultad y activar invulnerabilidad sin escribir progreso.

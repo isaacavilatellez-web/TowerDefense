@@ -1,3 +1,5 @@
+export const MAX_TOWERS_PER_TYPE_AND_LEVEL = 3;
+
 export const GAME_CONFIG = {
   map: { width: 540, height: 640, baseRadius: 30 },
   placement: {

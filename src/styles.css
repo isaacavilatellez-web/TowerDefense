@@ -321,6 +321,8 @@ h3 { font-size:1.5rem; }
 .battle-screen .tower-card strong { color:#16251c; font-size:.63rem; }
 .battle-screen .tower-card small { color:rgba(22,37,28,.62); }
 .battle-screen .tower-card em { color:#18251d; }
+.battle-screen .tower-card em { display:flex; flex-direction:column; align-items:flex-end; gap:2px; }
+.battle-screen .tower-card .tower-capacity { color:#16251c; font-size:.52rem; font-weight:900; }
 .clicker-zone { grid-column:2; grid-row:1 / span 2; display:flex; flex-direction:column; gap:7px; }
 .clicker-currency { align-self:flex-start; padding:8px 17px; border:4px solid #929a9b; border-radius:99px; color:#111b16; background:#fff; font-size:1.05rem; font-weight:900; }
 .battle-screen .clicker-card { flex:1; min-height:0; padding:8px; border:0; border-radius:20px; background:transparent; box-shadow:none; display:flex; flex-direction:column; justify-content:center; }
@@ -335,6 +337,8 @@ h3 { font-size:1.5rem; }
 .battle-screen .selected-stats span { background:#d8e1e1; }
 .battle-screen .selected-stats small, .battle-screen .priority-row { color:#596d61; }
 .battle-screen .priority-select { color:#16251c; background:#fff; }
+.battle-screen .tower-capacity-detail { grid-column:1 / -1; color:#596d61; font-size:.62rem; font-weight:800; }
+.battle-screen .tower-capacity-detail strong { color:#16251c; }
 .battle-screen .feedback { bottom:22px; }
 
 @media (max-width:600px) {

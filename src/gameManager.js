@@ -294,18 +294,7 @@ export class GameManager {
     else if (!this.run.testMode) this.waves.tick(delta);
     this.enemies.tick(delta);
     this.towers.tick(delta);
-    for (const projectile of this.run.projectiles) {
-      projectile.life -= delta;
-      if (projectile.life <= 0) {
-        if (projectile.reassign && !this.run.enemies.some((enemy) => enemy.id === projectile.targetId && enemy.alive)) {
-          const replacement = this.run.enemies.filter((enemy) => enemy.alive && Math.hypot(enemyPosition(enemy).x - projectile.from.x, enemyPosition(enemy).y - projectile.from.y) <= (projectile.range || Infinity)).sort((a, b) => b.progress - a.progress)[0];
-          if (replacement) { projectile.targetId = replacement.id; projectile.to = enemyPosition(replacement); }
-        }
-        this.enemies.hit(projectile.targetId, projectile.damage, projectile.splash, projectile.to, projectile);
-        projectile.done = true;
-      }
-    }
-    this.run.projectiles = this.run.projectiles.filter((projectile) => !projectile.done);
+    this.updateProjectiles(delta);
     if (this.run.mode === 'infinite' && !this.run.ended && this.run.baseHp > 0 && this.run.damageDone >= this.run.damageTarget) this.endRun(true);
     const nextThreshold = [10, 20, 30, 40, 50, 60, 70, 80, 90].find((item) => !this.run.miniBosses.includes(item));
     if (nextThreshold && this.run.kills / this.run.totalEnemies * 100 >= nextThreshold && !this.run.pausedForUpgrade) {
@@ -320,6 +309,78 @@ export class GameManager {
       this.run.saveTimer -= delta;
       if (this.run.saveTimer <= 0) { this.run.saveTimer = .45; this.persistInfiniteRun(); }
     } else SaveSystem.save(this.save);
+  }
+
+  updateProjectiles(delta) {
+    const run = this.run;
+    for (const projectile of run.projectiles) {
+      if (projectile.done) continue;
+      if (!projectile.from || !Number.isFinite(projectile.from.x) || !Number.isFinite(projectile.from.y)) { projectile.done = true; continue; }
+      const target = run.enemies.find((enemy) => enemy.alive && (enemy.id === projectile.targetId || String(enemy.id) === String(projectile.targetId)));
+      const activeTarget = target || (projectile.reassign ? this.findProjectileReplacement(projectile) : null);
+      if (activeTarget && activeTarget.id !== projectile.targetId) {
+        projectile.targetId = activeTarget.id;
+        projectile.to = enemyPosition(activeTarget);
+        projectile.targetPosition = projectile.to;
+      }
+      const currentTarget = activeTarget || target;
+      const previousPosition = projectile.position || projectile.from || { x: 0, y: 0 };
+      const previousTargetPosition = projectile.targetPosition || projectile.to || previousPosition;
+      if (currentTarget && projectile.guided) projectile.to = enemyPosition(currentTarget);
+      const maxLife = Math.max(0.001, Number(projectile.maxLife) || Number(projectile.life) || 0.001);
+      const previousLife = Math.max(0, Number(projectile.life) || 0);
+      projectile.life = previousLife - Math.max(0, delta);
+      const progress = Math.max(0, Math.min(1, 1 - Math.max(0, projectile.life) / maxLife));
+      const destination = projectile.to || previousPosition;
+      const currentPosition = {
+        x: projectile.from.x + (destination.x - projectile.from.x) * progress,
+        y: projectile.from.y + (destination.y - projectile.from.y) * progress,
+      };
+      const currentTargetPosition = currentTarget ? enemyPosition(currentTarget) : previousTargetPosition;
+      projectile.previousPosition = previousPosition;
+      projectile.position = currentPosition;
+      projectile.targetPosition = currentTargetPosition;
+
+      if (currentTarget && this.sweptProjectileHit(previousPosition, currentPosition, previousTargetPosition, currentTargetPosition, currentTarget.radius, projectile.radius)) {
+        this.impactProjectile(projectile, currentTarget, currentTargetPosition);
+        continue;
+      }
+
+      if (projectile.life > 0) continue;
+      let impactTarget = currentTarget;
+      if (!impactTarget && projectile.reassign) impactTarget = this.findProjectileReplacement(projectile);
+      if (impactTarget) {
+        projectile.targetId = impactTarget.id;
+        projectile.to = enemyPosition(impactTarget);
+        this.impactProjectile(projectile, impactTarget, projectile.to);
+      }
+      projectile.done = true;
+    }
+    run.projectiles = run.projectiles.filter((projectile) => !projectile.done);
+  }
+
+  findProjectileReplacement(projectile) {
+    return this.run.enemies
+      .filter((enemy) => enemy.alive && Math.hypot(enemyPosition(enemy).x - projectile.from.x, enemyPosition(enemy).y - projectile.from.y) <= (projectile.range || Infinity))
+      .sort((a, b) => b.progress - a.progress)[0] || null;
+  }
+
+  impactProjectile(projectile, target, position) {
+    projectile.targetId = target.id;
+    projectile.to = { ...position };
+    this.enemies.hit(target.id, projectile.damage, projectile.splash, projectile.to, projectile);
+    projectile.done = true;
+  }
+
+  sweptProjectileHit(projectileStart, projectileEnd, targetStart, targetEnd, targetRadius = 8, projectileRadius = 3) {
+    const start = { x: projectileStart.x - targetStart.x, y: projectileStart.y - targetStart.y };
+    const end = { x: projectileEnd.x - targetEnd.x, y: projectileEnd.y - targetEnd.y };
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const lengthSquared = dx * dx + dy * dy;
+    const projection = lengthSquared ? Math.max(0, Math.min(1, -(start.x * dx + start.y * dy) / lengthSquared)) : 0;
+    const closest = { x: start.x + dx * projection, y: start.y + dy * projection };
+    return Math.hypot(closest.x, closest.y) <= Math.max(1, Number(targetRadius) || 8) + Math.max(0, Number(projectileRadius) || 0);
   }
 
   endRun(victory) {

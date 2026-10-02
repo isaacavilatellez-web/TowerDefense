@@ -1,4 +1,4 @@
-import { GAME_CONFIG, WORLDS } from './config.js';
+import { GAME_CONFIG, MAX_TOWERS_PER_TYPE_AND_LEVEL, WORLDS } from './config.js';
 import { getTowerStats, towerCost } from './towerData.js';
 import { enemyPosition } from './enemyData.js';
 import { SaveSystem } from './saveSystem.js';
@@ -361,7 +361,7 @@ export class UIManager {
     const nextClickValue = GAME_CONFIG.economy.clickValues[run.clickerLevel] || 'MÁX';
     const clickerCost = this.game.economy.clickerCost() || 'MÁX';
     console.log('showBattle', { level: run?.level, mapReady: Boolean(run?.map) });
-    this.app.innerHTML = `<main class="app-shell battle-screen ${infinite ? 'infinite-battle' : ''} ${test ? 'test-battle' : ''}"><header class="battle-header"><button class="icon-button back-map" aria-label="Volver al mapa">‹</button><div class="battle-title"><h1>${battleLabel}</h1></div><div class="battle-progress"><div class="battle-progress-top"><span class="phase-label">${infinite ? 'DAÑO' : test ? 'PRUEBA' : 'OLEADA'}</span><b class="progress-value">0%</b></div><div class="progress-track"><i class="wave-progress"></i><span class="progress-marker marker-10"></span><span class="progress-marker marker-20"></span><span class="progress-marker marker-30"></span><span class="progress-marker marker-40"></span><span class="progress-marker marker-50"></span><span class="progress-marker marker-60"></span><span class="progress-marker marker-70"></span><span class="progress-marker marker-80"></span><span class="progress-marker marker-90"></span></div><small class="phase-value">${infinite ? 'FASE EN CURSO' : test ? 'SIN OLEADAS AUTOMÁTICAS' : 'PREPARACIÓN'}</small><small class="next-boss">${infinite || test ? '' : 'SIGUIENTE · MINIBOSS'}</small></div><div class="battle-resources"><span class="hud-resource coins-resource">${this.resourceArt('coin', 'hud-icon coin-icon')}<b class="coins-value">${run.coins}</b></span>${infinite ? '' : `<span class="hud-resource enemies-resource"><i class="hud-icon enemy-icon" aria-hidden="true">●</i><b class="enemy-count">${test ? '0' : `0/${run.totalEnemies}`}</b></span>`}</div></header><section class="battle-layout"><div class="game-field"><canvas id="battle-canvas" width="540" height="640"></canvas><div class="boss-hud" id="boss-hud"><div><strong class="boss-name">THE TITAN</strong><span class="boss-health-label">100%</span></div><div class="boss-health-track"><i class="boss-progress"></i></div></div><div class="field-hint" id="field-hint">Mantén y arrastra hasta una zona verde</div><div class="boss-warning" id="boss-warning"><span>MINIBOSS</span><strong>THE TITAN</strong></div></div><aside class="battle-side"><div class="tower-shop"><div class="section-label"><span>DEFENSAS</span><small>${test ? 'TODAS DISPONIBLES · GRATIS' : 'ARRASTRA AL MAPA'}</small></div><div class="tower-cards">${Object.values(GAME_CONFIG.towers).map((tower) => `<button class="tower-card" data-tower="${tower.id}" title="Arrastra para colocar o evolucionar" style="--rarity-color:${tower.rarityColor}"><span class="tower-art" style="--tower-color:${tower.color}">${this.towerArt(tower.id)}</span><span><strong>${tower.shortName}</strong><small>${tower.name} · NIVEL ${this.game.towerLevel(tower.id)}</small></span><em>${test ? 'GRATIS' : `${this.resourceArt('coin', 'hud-icon coin-icon')}${tower.cost}`}</em></button>`).join('')}</div></div><div class="clicker-zone"><div class="clicker-currency">${this.resourceArt('coin', 'hud-icon coin-icon')}<b class="coins-value">${run.coins}</b></div><div class="clicker-card"><button class="clicker-button" id="clicker-button" aria-label="CLICKER ×${currentClickValue}"><span class="clicker-title">CLICKER</span><strong>×<b class="click-value">${currentClickValue}</b></strong></button></div><button class="upgrade-clicker" id="upgrade-clicker" aria-label="MEJORAR a ×${nextClickValue} por ◆ ${clickerCost}"><strong>MEJORAR <span aria-hidden="true">→</span> ×<b class="clicker-next-level">${nextClickValue}</b></strong><span class="clicker-price">${this.resourceArt('coin', 'hud-icon coin-icon')}<b class="clicker-cost">${clickerCost}</b></span></button></div><div class="tower-panel" id="tower-panel"></div>${test ? this.testPanelMarkup(run) : ''}</aside></section><div class="shop-drag-preview" id="shop-drag-preview" aria-hidden="true"></div><div class="feedback" id="feedback"></div><div class="upgrade-overlay" id="upgrade-overlay"></div><div class="result-overlay" id="result-overlay"></div></main>`;
+    this.app.innerHTML = `<main class="app-shell battle-screen ${infinite ? 'infinite-battle' : ''} ${test ? 'test-battle' : ''}"><header class="battle-header"><button class="icon-button back-map" aria-label="Volver al mapa">‹</button><div class="battle-title"><h1>${battleLabel}</h1></div><div class="battle-progress"><div class="battle-progress-top"><span class="phase-label">${infinite ? 'DAÑO' : test ? 'PRUEBA' : 'OLEADA'}</span><b class="progress-value">0%</b></div><div class="progress-track"><i class="wave-progress"></i><span class="progress-marker marker-10"></span><span class="progress-marker marker-20"></span><span class="progress-marker marker-30"></span><span class="progress-marker marker-40"></span><span class="progress-marker marker-50"></span><span class="progress-marker marker-60"></span><span class="progress-marker marker-70"></span><span class="progress-marker marker-80"></span><span class="progress-marker marker-90"></span></div><small class="phase-value">${infinite ? 'FASE EN CURSO' : test ? 'SIN OLEADAS AUTOMÁTICAS' : 'PREPARACIÓN'}</small><small class="next-boss">${infinite || test ? '' : 'SIGUIENTE · MINIBOSS'}</small></div><div class="battle-resources"><span class="hud-resource coins-resource">${this.resourceArt('coin', 'hud-icon coin-icon')}<b class="coins-value">${run.coins}</b></span>${infinite ? '' : `<span class="hud-resource enemies-resource"><i class="hud-icon enemy-icon" aria-hidden="true">●</i><b class="enemy-count">${test ? '0' : `0/${run.totalEnemies}`}</b></span>`}</div></header><section class="battle-layout"><div class="game-field"><canvas id="battle-canvas" width="540" height="640"></canvas><div class="boss-hud" id="boss-hud"><div><strong class="boss-name">THE TITAN</strong><span class="boss-health-label">100%</span></div><div class="boss-health-track"><i class="boss-progress"></i></div></div><div class="field-hint" id="field-hint">Mantén y arrastra hasta una zona verde</div><div class="boss-warning" id="boss-warning"><span>MINIBOSS</span><strong>THE TITAN</strong></div></div><aside class="battle-side"><div class="tower-shop"><div class="section-label"><span>DEFENSAS</span><small>${test ? 'TODAS DISPONIBLES · GRATIS' : 'ARRASTRA AL MAPA'}</small></div><div class="tower-cards">${Object.values(GAME_CONFIG.towers).map((tower) => `<button class="tower-card" data-tower="${tower.id}" title="Arrastra para colocar o evolucionar" style="--rarity-color:${tower.rarityColor}"><span class="tower-art" style="--tower-color:${tower.color}">${this.towerArt(tower.id)}</span><span><strong>${tower.shortName}</strong><small>${tower.name} · NIVEL ${this.game.towerLevel(tower.id)}</small></span><em><span class="tower-cost">${test ? 'GRATIS' : `${this.resourceArt('coin', 'hud-icon coin-icon')}${tower.cost}`}</span><small class="tower-capacity">0/${MAX_TOWERS_PER_TYPE_AND_LEVEL}</small></em></button>`).join('')}</div></div><div class="clicker-zone"><div class="clicker-currency">${this.resourceArt('coin', 'hud-icon coin-icon')}<b class="coins-value">${run.coins}</b></div><div class="clicker-card"><button class="clicker-button" id="clicker-button" aria-label="CLICKER ×${currentClickValue}"><span class="clicker-title">CLICKER</span><strong>×<b class="click-value">${currentClickValue}</b></strong></button></div><button class="upgrade-clicker" id="upgrade-clicker" aria-label="MEJORAR a ×${nextClickValue} por ◆ ${clickerCost}"><strong>MEJORAR <span aria-hidden="true">→</span> ×<b class="clicker-next-level">${nextClickValue}</b></strong><span class="clicker-price">${this.resourceArt('coin', 'hud-icon coin-icon')}<b class="clicker-cost">${clickerCost}</b></span></button></div><div class="tower-panel" id="tower-panel"></div>${test ? this.testPanelMarkup(run) : ''}</aside></section><div class="shop-drag-preview" id="shop-drag-preview" aria-hidden="true"></div><div class="feedback" id="feedback"></div><div class="upgrade-overlay" id="upgrade-overlay"></div><div class="result-overlay" id="result-overlay"></div></main>`;
     this.app.querySelectorAll('.tower-card').forEach((card) => {
       const tower = GAME_CONFIG.towers[card.dataset.tower];
       const cost = towerCost(card.dataset.tower, this.game.towerLevel(card.dataset.tower));
@@ -659,7 +659,8 @@ export class UIManager {
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(tower.id);
     }
-    const compatible = activeDrag.level < 5 ? (groups.get(`${activeDrag.type}:${activeDrag.level}`) || []) : [];
+    const compatible = activeDrag.level < 5 && this.game.towers.canMergeToNext(activeDrag.type, activeDrag.level)
+      ? (groups.get(`${activeDrag.type}:${activeDrag.level}`) || []) : [];
     const mergeable = new Set(compatible.filter((id) => id !== run.drag?.towerId));
     run.mergeableTowerIds = mergeable;
     return mergeable;
@@ -710,7 +711,7 @@ export class UIManager {
       drag.moved = true;
       const candidate = run.towers.find((tower) => Math.hypot(tower.x - drag.point.x, tower.y - drag.point.y) < 30);
       const level = run.placingLevel || 1;
-      const directTarget = candidate && candidate.level < 5 && candidate.type === run.placingType && candidate.level === level ? candidate : null;
+      const directTarget = candidate && candidate.level < 5 && candidate.type === run.placingType && candidate.level === level && this.game.towers.canMergeToNext(candidate.type, candidate.level) ? candidate : null;
       run.mergeTargetId = directTarget?.id || null;
       if (directTarget) {
         run.placementPreview = { x: directTarget.x, y: directTarget.y };
@@ -766,10 +767,25 @@ export class UIManager {
       const point = inside ? this.canvasPoint(event) : null;
       const candidate = point && run.towers.find((tower) => Math.hypot(tower.x - point.x, tower.y - point.y) < 30);
       const level = run.placingLevel || 1;
-      const directTarget = candidate && candidate.level < 5 && candidate.type === run.placingType && candidate.level === level ? candidate : null;
-      if (inside && drag.moved && directTarget && this.game.towers.mergePurchased(run.placingType, directTarget.id)) return;
+      const possibleDirectTarget = candidate && candidate.level < 5 && candidate.type === run.placingType && candidate.level === level ? candidate : null;
+      const directTarget = possibleDirectTarget && this.game.towers.canMergeToNext(possibleDirectTarget.type, possibleDirectTarget.level) ? possibleDirectTarget : null;
+      if (inside && drag.moved && possibleDirectTarget) {
+        if (directTarget && this.game.towers.mergePurchased(run.placingType, directTarget.id)) return;
+        const type = run.placingType;
+        const destinationLabel = this.game.towers.gradeLabel(type, level + 1);
+        this.game.towers.cancelPlacement();
+        this.game.feedback(`${type.toUpperCase()} · ${destinationLabel}`, 'error');
+        return;
+      }
       const finalPoint = run.placementPreview || point;
-      if (inside && drag.moved && finalPoint && this.game.towers.getPlacementValidation(finalPoint, run.placingType).valid && this.game.towers.place(finalPoint)) return;
+      const validation = finalPoint ? this.game.towers.getPlacementValidation(finalPoint, run.placingType) : null;
+      if (inside && drag.moved && validation?.valid && this.game.towers.place(finalPoint)) return;
+      if (validation?.reason === 'limit') {
+        const type = run.placingType;
+        this.game.towers.cancelPlacement();
+        this.game.feedback(`${type.toUpperCase()} · ${validation.count}/${validation.limit} · ${level >= 5 ? 'Máximo' : 'Fusiona'}`, 'error');
+        return;
+      }
       this.game.towers.cancelPlacement();
       this.game.feedback('Colocación cancelada · sin gasto', 'info');
       return;
@@ -829,6 +845,8 @@ export class UIManager {
       const tower = GAME_CONFIG.towers[card.dataset.tower];
       const label = card.querySelector('small');
       if (tower && label) label.textContent = `${tower.name} · NIVEL ${this.game.towerLevel(tower.id)}`;
+      const capacity = card.querySelector('.tower-capacity');
+      if (tower && capacity) capacity.textContent = this.game.towers.gradeLabel(tower.id, 1);
     });
     const upgradeButton = this.app.querySelector('#upgrade-clicker');
     if (upgradeButton) {
@@ -854,9 +872,9 @@ export class UIManager {
     const selected = run.towers.find((tower) => tower.id === run.selectedTowerId);
     if (selected) {
       const stats = getTowerStats(selected.type, selected.level, run.buffs, this.game.towerLevel(selected.type));
-      const panelKey = `${selected.id}:${selected.level}:${selected.priority}:${JSON.stringify(run.buffs)}`;
+      const panelKey = `${selected.id}:${selected.level}:${this.game.towers.count(selected.type, selected.level)}:${selected.priority}:${JSON.stringify(run.buffs)}`;
       if (panel && panelKey !== this.selectedPanelKey) {
-        panel.innerHTML = `<div class="selected-tower"><div class="selected-stats"><span><small>DAÑO</small><b>${stats.displayDamage}</b></span><span><small>CADENCIA</small><b>${stats.cooldown.toFixed(2)}s</b></span><span><small>ALCANCE</small><b>${Math.round(stats.range)}</b></span></div><div class="priority-row"><label for="selected-priority">OBJETIVO</label><select id="selected-priority" class="priority-select"><option value="first">PRIMERO</option><option value="last">ÚLTIMO</option><option value="strong">FUERTE</option><option value="weak">DÉBIL</option><option value="boss">JEFE</option></select></div></div>`;
+        panel.innerHTML = `<div class="selected-tower"><div class="selected-stats"><span><small>DAÑO</small><b>${stats.displayDamage}</b></span><span><small>CADENCIA</small><b>${stats.cooldown.toFixed(2)}s</b></span><span><small>ALCANCE</small><b>${Math.round(stats.range)}</b></span></div><div class="priority-row"><label for="selected-priority">OBJETIVO</label><select id="selected-priority" class="priority-select"><option value="first">PRIMERO</option><option value="last">ÚLTIMO</option><option value="strong">FUERTE</option><option value="weak">DÉBIL</option><option value="boss">JEFE</option></select></div><div class="tower-capacity-detail">EVOLUCIÓN ${selected.level} · <strong>${this.game.towers.gradeLabel(selected.type, selected.level)}</strong></div></div>`;
         panel.querySelector('.priority-select').value = selected.priority; panel.querySelector('.priority-select').addEventListener('change', (event) => { selected.priority = event.target.value; });
         this.selectedPanelKey = panelKey;
       }

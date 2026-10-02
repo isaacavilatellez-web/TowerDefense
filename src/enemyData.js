@@ -23,6 +23,36 @@ export function normalizeEnemyCombatState(enemy) {
   enemy.maxHp = maxHp;
   enemy.hp = clamp(Number.isFinite(savedHp) ? savedHp : maxHp, 0, maxHp);
   enemy.alive = enemy.alive !== false && enemy.hp > 0;
+  enemy.id = enemy.id ?? `enemy-${Math.random().toString(36).slice(2)}`;
+  enemy.radius = Math.max(1, finiteOr(enemy.radius, base.radius || 8));
+  enemy.progress = clamp(finiteOr(enemy.progress, 0), 0, 1);
+  enemy.path = Array.isArray(enemy.path) && enemy.path.length ? enemy.path : [{ x: 0, y: 0 }, { x: 1, y: 0 }];
+  enemy.path = enemy.path.map((point) => ({ x: finiteOr(point?.x, 0), y: finiteOr(point?.y, 0) }));
+  enemy.segmentLengths = Array.isArray(enemy.segmentLengths) && enemy.segmentLengths.length === Math.max(0, enemy.path.length - 1)
+    ? enemy.segmentLengths.map((length, index) => Math.max(0, finiteOr(length, Math.hypot(enemy.path[index + 1].x - enemy.path[index].x, enemy.path[index + 1].y - enemy.path[index].y))))
+    : enemy.path.slice(0, -1).map((point, index) => Math.hypot(enemy.path[index + 1].x - point.x, enemy.path[index + 1].y - point.y));
+  const computedPathLength = enemy.segmentLengths.reduce((sum, length) => sum + length, 0);
+  enemy.pathLength = Math.max(0, finiteOr(enemy.pathLength, computedPathLength) || computedPathLength);
+  enemy.speedRelative = finiteOr(enemy.speedRelative, base.speedRelative || 1);
+  enemy.speed = Math.max(0, finiteOr(enemy.speed, .026 * enemy.speedRelative));
+  enemy.shelterDamage = enemy.shelterDamage ?? base.shelterDamage;
+  enemy.reward = finiteOr(enemy.reward, base.reward || 0);
+  enemy.slowFactor = clamp(finiteOr(enemy.slowFactor, 1), .01, 1);
+  enemy.slowTimer = Math.max(0, finiteOr(enemy.slowTimer, 0));
+  enemy.freezeTimer = Math.max(0, finiteOr(enemy.freezeTimer, 0));
+  enemy.freezeImmunity = Math.max(0, finiteOr(enemy.freezeImmunity, 0));
+  enemy.pulse = Math.max(0, finiteOr(enemy.pulse, 0));
+  enemy.regenRate = Math.max(0, finiteOr(enemy.regenRate, base.regen || 0));
+  enemy.regenSuppressed = Math.max(0, finiteOr(enemy.regenSuppressed, 0));
+  enemy.regenReduction = clamp(finiteOr(enemy.regenReduction, 0), 0, 1);
+  enemy.vulnerability = clamp(finiteOr(enemy.vulnerability, 0), 0, 1);
+  enemy.vulnerabilityTimer = Math.max(0, finiteOr(enemy.vulnerabilityTimer, 0));
+  const savedBurn = enemy.burn;
+  enemy.burn = savedBurn && typeof savedBurn === 'object' && finiteOr(savedBurn.duration, 0) > 0 && finiteOr(savedBurn.damagePerSecond, 0) > 0
+    ? { duration: finiteOr(savedBurn.duration, 0), damagePerSecond: finiteOr(savedBurn.damagePerSecond, 0) } : null;
+  enemy.previousPosition = enemy.previousPosition && Number.isFinite(enemy.previousPosition.x) && Number.isFinite(enemy.previousPosition.y)
+    ? enemy.previousPosition
+    : { x: enemy.path[0].x, y: enemy.path[0].y };
   enemy.armorReduction = clamp(finiteOr(enemy.armorReduction, base.armorReduction || 0), 0, .999999);
   enemy.damageResistance = clamp(finiteOr(enemy.damageResistance ?? enemy.resistance, base.damageResistance || 0), 0, .999999);
   enemy.controlResistance = clamp(finiteOr(enemy.controlResistance, base.controlResistance || 0), 0, .999999);
@@ -82,6 +112,7 @@ export function createEnemy(kind, level, path, id, overrides = {}) {
     pulse: 0,
     damageCounted: 0,
     selected: false,
+    previousPosition: { x: path[0]?.x || 0, y: path[0]?.y || 0 },
   });
 }
 

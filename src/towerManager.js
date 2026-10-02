@@ -1,4 +1,4 @@
-import { GAME_CONFIG } from './config.js';
+import { GAME_CONFIG, MAX_TOWERS_PER_TYPE_AND_LEVEL } from './config.js';
 import { getTowerStats, towerCost } from './towerData.js';
 import { enemyPosition } from './enemyData.js';
 
@@ -135,9 +135,23 @@ export class TowerManager {
     if (!this.game.run || !point || !type) return { valid: false, reason: 'missing' };
     const level = this.game.run.placingLevel || 1;
     const sameGrade = this.game.run.towers.filter((tower) => tower.type === type && tower.level === level).length;
-    if (sameGrade >= 2) return { valid: false, reason: 'limit' };
+    if (sameGrade >= MAX_TOWERS_PER_TYPE_AND_LEVEL) return { valid: false, reason: 'limit', count: sameGrade, limit: MAX_TOWERS_PER_TYPE_AND_LEVEL };
     const collision = this.getPlacementCollision(point, type);
     return collision ? { valid: false, reason: collision.reason } : { valid: true, reason: 'terrain' };
+  }
+
+  count(type, level, excludeId = null) {
+    return this.game.run?.towers?.filter((tower) => tower.id !== excludeId && tower.type === type && tower.level === level).length || 0;
+  }
+
+  gradeLabel(type, level) {
+    const count = this.count(type, level);
+    if (count < MAX_TOWERS_PER_TYPE_AND_LEVEL) return `${count}/${MAX_TOWERS_PER_TYPE_AND_LEVEL}`;
+    return level >= 5 ? `${MAX_TOWERS_PER_TYPE_AND_LEVEL}/${MAX_TOWERS_PER_TYPE_AND_LEVEL} · Máximo` : `${MAX_TOWERS_PER_TYPE_AND_LEVEL}/${MAX_TOWERS_PER_TYPE_AND_LEVEL} · Fusiona`;
+  }
+
+  canMergeToNext(type, level) {
+    return level < 5 && this.count(type, level + 1) < MAX_TOWERS_PER_TYPE_AND_LEVEL;
   }
 
   slidePlacement(start, desired, type = this.game.run?.placingType) {
@@ -205,7 +219,7 @@ export class TowerManager {
     const destinationPosition = { x: b.x, y: b.y };
     const sourceLevel = a.level;
     const nextLevelCount = towers.filter((item) => item.type === a.type && item.level === sourceLevel + 1).length;
-    if (nextLevelCount >= 2) return false;
+    if (nextLevelCount >= MAX_TOWERS_PER_TYPE_AND_LEVEL) return false;
     b.level += 1;
     b.cooldown = 0;
     this.game.run.towers = towers.filter((item) => item.id !== a.id);
@@ -223,8 +237,8 @@ export class TowerManager {
     if (!run.placingType || run.placingType !== type || !target || target.type !== type || target.level !== level || target.level >= 5) return false;
     const cost = towerCost(type, this.game.towerLevel(type));
     if (!run.unlimitedCoins && run.coins < cost) return false;
-    const nextLevelCount = run.towers.filter((item) => item.id !== target.id && item.type === type && item.level === level + 1).length;
-    if (nextLevelCount >= 2) return false;
+    const nextLevelCount = run.towers.filter((item) => item.type === type && item.level === level + 1).length;
+    if (nextLevelCount >= MAX_TOWERS_PER_TYPE_AND_LEVEL) return false;
     if (!run.unlimitedCoins) run.coins -= cost;
     const sourceLevel = target.level;
     target.level += 1;
@@ -279,12 +293,13 @@ export class TowerManager {
     candidates.forEach((assigned, index) => {
       const destination = enemyPosition(assigned);
       this.game.run.projectiles.push({
-        from: { x: tower.x, y: tower.y }, to: destination, targetId: assigned.id, towerType: tower.type, damage: stats.damage,
+        from: { x: tower.x, y: tower.y }, to: destination, position: { x: tower.x, y: tower.y }, targetPosition: { ...destination },
+        targetId: assigned.id, towerType: tower.type, damage: stats.damage, radius: tower.type === 'mortar' ? 6 : 4,
         splash: stats.splash, chain: stats.chain, chainRange: stats.chainRange, chainDamages: stats.chainDamages, chainFalloff: stats.chainFalloff,
         slowFactor: stats.slowFactor, slowDuration: stats.slowDuration, freezeDuration: stats.freezeDuration, vulnerability: stats.vulnerability,
         electricSlow: stats.electricSlow, electricSlowDuration: stats.electricSlowDuration, burnDuration: stats.burnDuration, regenReduction: stats.regenReduction,
         groundFire: stats.groundFire, coneAngle: stats.coneAngle, coneOrigin: { x: tower.x, y: tower.y }, edgeFalloff: stats.edgeFalloff,
-        reassign: stats.reassign, range: stats.range, life: .16 + index * .018, maxLife: .16 + index * .018,
+        reassign: stats.reassign, guided: tower.type === 'mortar', range: stats.range, life: .16 + index * .018, maxLife: .16 + index * .018,
       });
     });
   }
