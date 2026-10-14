@@ -58,17 +58,17 @@ export class UIManager {
       tree: treeSprite,
       shrub: shrubSprite,
       rock: rockSprite,
-      gunner: gunnerSprite,
+      'gunner-1': gunnerSprite,
       'gunner-2': gunnerSprite2, 'gunner-3': gunnerSprite3,
-      cannon: cannonSprite,
+      'cannon-1': cannonSprite,
       'cannon-2': cannonSprite2, 'cannon-3': cannonSprite3,
-      flame: flameSprite,
+      'flame-1': flameSprite,
       'flame-2': flameSprite2, 'flame-3': flameSprite3,
-      sniper: sniperSprite,
+      'sniper-1': sniperSprite,
       'sniper-2': sniperSprite2, 'sniper-3': sniperSprite3,
-      mortar: mortarSprite,
+      'mortar-1': mortarSprite,
       'mortar-2': mortarSprite2, 'mortar-3': mortarSprite3,
-      tesla: teslaSprite,
+      'tesla-1': teslaSprite,
       'tesla-2': teslaSprite2, 'tesla-3': teslaSprite3,
       coin: coinSprite,
       supplies: suppliesSprite,
@@ -645,9 +645,18 @@ export class UIManager {
     return event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
   }
 
-  towerArt(type, level = 1) {
-    const safeLevel = Math.max(1, Math.min(5, Number(level) || 1));
-    const src = this.spritePaths[`${type}-${Math.min(3, safeLevel)}`] || this.spritePaths[type] || this.spritePaths.gunner;
+  getPermanentSpriteKey(type, permanentLevel = 1) {
+    const safePermanentLevel = Math.max(1, Number(permanentLevel) || 1);
+    const availableLevels = [1, 2, 3].filter((level) => Boolean(this.spritePaths[`${type}-${level}`]));
+    const eligibleLevels = availableLevels.filter((level) => level <= safePermanentLevel);
+    const selectedLevel = eligibleLevels.at(-1) || availableLevels[0];
+    return selectedLevel ? `${type}-${selectedLevel}` : null;
+  }
+
+  towerArt(type, permanentLevel = this.game?.towerLevel(type) || 1) {
+    const spriteKey = this.getPermanentSpriteKey(type, permanentLevel);
+    const src = spriteKey ? this.spritePaths[spriteKey] : null;
+    if (!src) return '';
     return `<img class="tower-sprite" src="${src}" alt="" draggable="false" aria-hidden="true">`;
   }
 
@@ -703,9 +712,13 @@ export class UIManager {
     }
     const tower = GAME_CONFIG.towers[run.placingType];
     const shellRect = this.app.querySelector('.battle-screen').getBoundingClientRect();
-    if (node.dataset.type !== run.placingType) {
+    const permanentLevel = this.game.towerLevel(run.placingType);
+    const spriteKey = this.getPermanentSpriteKey(run.placingType, permanentLevel);
+    if (node.dataset.type !== run.placingType || node.dataset.permanentLevel !== String(permanentLevel) || node.dataset.spriteKey !== spriteKey) {
       node.dataset.type = run.placingType;
-      node.innerHTML = `<div class="drag-preview-card" style="--rarity-color:${tower.rarityColor}"><span class="drag-preview-art">${this.towerArt(tower.id, run.placingLevel || 1)}</span><strong>${tower.name}</strong><small>EVOLUCIÓN ${run.placingLevel || 1} · ${this.resourceArt('coin', 'inline-resource-sprite')}${towerCost(tower.id, run.placingLevel || 1)}</small></div>`;
+      node.dataset.permanentLevel = String(permanentLevel);
+      node.dataset.spriteKey = spriteKey || '';
+      node.innerHTML = `<div class="drag-preview-card" style="--rarity-color:${tower.rarityColor}"><span class="drag-preview-art">${this.towerArt(tower.id, permanentLevel)}</span><strong>${tower.name}</strong><small>EVOLUCIÓN ${run.placingLevel || 1} · ${this.resourceArt('coin', 'inline-resource-sprite')}${towerCost(tower.id, run.placingLevel || 1)}</small></div>`;
     }
     node.style.left = `${drag.clientX - shellRect.left}px`;
     node.style.top = `${drag.clientY - shellRect.top}px`;
@@ -924,6 +937,13 @@ export class UIManager {
       const tower = GAME_CONFIG.towers[card.dataset.tower];
       const label = card.querySelector('small');
       if (tower && label) label.textContent = `${tower.name} · NIVEL ${this.game.towerLevel(tower.id)}`;
+      const permanentLevel = this.game.towerLevel(card.dataset.tower);
+      const spriteKey = this.getPermanentSpriteKey(card.dataset.tower, permanentLevel);
+      const sprite = card.querySelector('.tower-sprite');
+      if (sprite && spriteKey && sprite.dataset.spriteKey !== spriteKey) {
+        sprite.src = this.spritePaths[spriteKey];
+        sprite.dataset.spriteKey = spriteKey;
+      }
       const capacity = card.querySelector('.tower-capacity');
       if (tower && capacity) capacity.textContent = this.game.towers.gradeLabel(tower.id, 1);
     });
@@ -964,7 +984,8 @@ export class UIManager {
   }
 
   drawSprite(ctx, key, x, y, width, height = width, alpha = 1) {
-    const image = this.sprites[key] || this.sprites[key.replace(/-[45]$/, '-3')] || this.sprites[key.replace(/-[23]$/, '')];
+    if (!key) return false;
+    const image = this.sprites[key];
     if (!image?.naturalWidth) return false;
     const imageRatio = image.naturalWidth / image.naturalHeight;
     const boxRatio = width / height;
@@ -1146,7 +1167,8 @@ export class UIManager {
     if (selected || target) { ctx.strokeStyle = target ? '#7de38b' : '#f1d889'; ctx.lineWidth = target ? 5 : 3; ctx.beginPath(); ctx.arc(0, 0, 25 + (target ? Math.sin(performance.now() / 120) * 2 : 0), 0, Math.PI * 2); ctx.stroke(); }
     ctx.fillStyle = animation.mergeable ? '#c19b4a' : 'rgba(48, 63, 38, .34)'; ctx.beginPath(); ctx.ellipse(0, 17, 22, 7, 0, 0, Math.PI * 2); ctx.fill();
     const spriteSize = 58;
-    this.drawSprite(ctx, `${tower.type}-${Math.max(1, Number(tower.level) || 1)}`, 0, 0, spriteSize, spriteSize, 1);
+    const permanentLevel = this.game.towerLevel(tower.type);
+    this.drawSprite(ctx, this.getPermanentSpriteKey(tower.type, permanentLevel), 0, 0, spriteSize, spriteSize, 1);
     ctx.fillStyle = '#f5edc5'; ctx.font = '700 10px Arial'; ctx.textAlign = 'center'; ctx.fillText(`E${tower.level}`, 0, -27); ctx.restore();
   }
 
