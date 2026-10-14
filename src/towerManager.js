@@ -94,7 +94,7 @@ export class TowerManager {
     const run = this.game.run;
     if (!run || !point || !type) return { reason: 'missing', normal: { x: 0, y: -1 } };
     const { width, height } = GAME_CONFIG.map;
-    const { pathClearance, towerSeparation, edgeMargin } = GAME_CONFIG.placement;
+    const { pathClearance, edgeMargin } = GAME_CONFIG.placement;
     const edgeHits = [
       { hit: point.x < edgeMargin, normal: { x: 1, y: 0 } },
       { hit: point.x > width - edgeMargin, normal: { x: -1, y: 0 } },
@@ -121,7 +121,12 @@ export class TowerManager {
       return { reason: 'path', normal: { x: nx, y: ny }, closest };
     }
 
-    const tower = run.towers.find((item) => !ignoreIds.includes(item.id) && Math.hypot(item.x - point.x, item.y - point.y) < towerSeparation);
+    const placementRadius = this.getPlacementRadius(type);
+    const tower = run.towers.find((item) => {
+      if (ignoreIds.includes(item.id)) return false;
+      const requiredDistance = (placementRadius + this.getPlacementRadius(item.type)) * GAME_CONFIG.placement.towerSeparationMultiplier;
+      return Math.hypot(item.x - point.x, item.y - point.y) < requiredDistance;
+    });
     if (tower) {
       let nx = point.x - tower.x;
       let ny = point.y - tower.y;
@@ -129,6 +134,11 @@ export class TowerManager {
       return { reason: 'tower', normal: { x: nx / length, y: ny / length }, tower };
     }
     return null;
+  }
+
+  getPlacementRadius() {
+    // Evoluciones conservan la misma huella para que fusionar nunca cree un solapamiento nuevo.
+    return GAME_CONFIG.placement.towerFootprintRadius;
   }
 
   getPlacementValidation(point, type = this.game.run?.placingType) {

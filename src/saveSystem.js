@@ -14,6 +14,7 @@ const DEFAULT_SAVE = {
   technology: 0,
   crystals: 0,
   gears: { common: 0, rare: 0, epic: 0, legendary: 0 },
+  pendingChestOpening: null,
   towerLevels: { gunner: 1, cannon: 1, flame: 1, mortar: 1, tesla: 1, sniper: 1 },
   firstVictoryLevels: [],
   selectedCommander: 'engineer',
@@ -68,6 +69,7 @@ function normalizeSave(value) {
     scrap: Number.isFinite(supplies) ? Math.max(0, Math.floor(supplies)) : 0,
     crystals: Number.isFinite(data.crystals) ? Math.max(0, Math.floor(data.crystals)) : 0,
     gears,
+    pendingChestOpening: data.pendingChestOpening && typeof data.pendingChestOpening === 'object' ? data.pendingChestOpening : null,
     towerLevels,
     unlockedTowers: Array.isArray(data.unlockedTowers)
       ? [...new Set([...data.unlockedTowers, ...DEFAULT_SAVE.unlockedTowers])]

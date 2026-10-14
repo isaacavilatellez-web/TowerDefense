@@ -7,11 +7,23 @@ import treeSprite from '../sprites/dec_arbol.png';
 import shrubSprite from '../sprites/dec_arbusto.png';
 import rockSprite from '../sprites/dec_roca.png';
 import gunnerSprite from '../sprites/def_amt_n1.png';
+import gunnerSprite2 from '../sprites/def_amt_n2.png';
+import gunnerSprite3 from '../sprites/def_amt_n3.png';
 import cannonSprite from '../sprites/def_can_n1.png';
+import cannonSprite2 from '../sprites/def_can_n2.png';
+import cannonSprite3 from '../sprites/def_can_n3.png';
 import flameSprite from '../sprites/def_flm_n1.png';
+import flameSprite2 from '../sprites/def_flm_n2.png';
+import flameSprite3 from '../sprites/def_flm_n3.png';
 import sniperSprite from '../sprites/def_hie_n1.png';
+import sniperSprite2 from '../sprites/def_hie_n2.png';
+import sniperSprite3 from '../sprites/def_hie_n3.png';
 import mortarSprite from '../sprites/def_mis_n1.png';
+import mortarSprite2 from '../sprites/def_mis_n2.png';
+import mortarSprite3 from '../sprites/def_mis_n3.png';
 import teslaSprite from '../sprites/def_tes_n1.png';
+import teslaSprite2 from '../sprites/def_tes_n2.png';
+import teslaSprite3 from '../sprites/def_tes_n3.png';
 import coinSprite from '../sprites/Moneda.png';
 import suppliesSprite from '../sprites/rec_suministros.png';
 import crystalsSprite from '../sprites/rec_cristales.png';
@@ -47,11 +59,17 @@ export class UIManager {
       shrub: shrubSprite,
       rock: rockSprite,
       gunner: gunnerSprite,
+      'gunner-2': gunnerSprite2, 'gunner-3': gunnerSprite3,
       cannon: cannonSprite,
+      'cannon-2': cannonSprite2, 'cannon-3': cannonSprite3,
       flame: flameSprite,
+      'flame-2': flameSprite2, 'flame-3': flameSprite3,
       sniper: sniperSprite,
+      'sniper-2': sniperSprite2, 'sniper-3': sniperSprite3,
       mortar: mortarSprite,
+      'mortar-2': mortarSprite2, 'mortar-3': mortarSprite3,
       tesla: teslaSprite,
+      'tesla-2': teslaSprite2, 'tesla-3': teslaSprite3,
       coin: coinSprite,
       supplies: suppliesSprite,
       crystals: crystalsSprite,
@@ -254,15 +272,9 @@ export class UIManager {
     this.app.querySelectorAll('.open-chest').forEach((button) => button.addEventListener('click', () => {
       const card = button.closest('.chest-card');
       const result = this.game.economy.openChest(card.dataset.chest);
+      if (result.reason === 'pending-opening') { this.openChestExperience(result.pending, { resumed: true }); return; }
       if (!result.ok) { this.showToast('No tienes suficientes Suministros'); return; }
-      const reward = Object.entries(result.rewards).filter(([, count]) => count > 0).map(([rarity, count]) => `<span class="reward-item">${this.gearArt(rarity, 'reward-gear-sprite')} ${count} ${economy.gearLabels[rarity].toUpperCase()}</span>`).join('');
-      card.classList.remove('opened');
-      card.classList.add('opening');
-      card.querySelector('.reward-reveal').innerHTML = reward;
-      window.setTimeout(() => card.classList.add('opened'), 280);
-      button.textContent = 'ABRIR OTRO';
-      this.app.querySelector('.supplies-value').textContent = this.game.economy.getSupplies();
-      Object.keys(result.rewards).forEach((rarity) => this.app.querySelector(`.gear-value-${rarity}`).textContent = this.game.economy.gearCount(rarity));
+      this.openChestExperience(result);
     }));
     this.app.querySelectorAll('.buy-gear').forEach((button) => button.addEventListener('click', () => {
       const result = this.game.economy.buyGear(button.dataset.rarity);
@@ -271,6 +283,72 @@ export class UIManager {
       this.showToast(`+1 engranaje ${economy.gearLabels[result.rarity].toLowerCase()}`);
     }));
     this.bindNav();
+    if (this.game.economy.getPendingChestOpening()) window.setTimeout(() => this.openChestExperience(this.game.economy.getPendingChestOpening(), { resumed: true }), 0);
+  }
+
+  openChestExperience(result, { resumed = false } = {}) {
+    if (this.chestOpening) return;
+    this.chestOpening = { result, index: -1, skipped: false };
+    const economy = GAME_CONFIG.economy.permanent;
+    const rewards = Object.entries(result.rewards).filter(([, count]) => count > 0);
+    const chest = result.chest;
+    const overlay = document.createElement('div');
+    overlay.className = `chest-opening-overlay ${chest.id === 'commander' ? 'chest-opening-commander' : ''}`;
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.innerHTML = `<div class="chest-opening-stage" style="--chest-color:${chest.color}">
+      <button class="chest-skip" type="button">OMITIR ANIMACIÓN</button>
+      <div class="chest-opening-kicker">${resumed ? 'APERTURA RECUPERADA' : chest.name.toUpperCase()}</div>
+      <div class="chest-opening-art">${this.chestArt(chest.id, 'chest-opening-sprite')}</div>
+      <h2 class="chest-opening-title">${resumed ? 'Recompensas aseguradas' : '¿Listo para abrir?'}</h2>
+      <p class="chest-opening-prompt">${resumed ? 'Toca para revisar el resultado' : 'Toca para abrir'}</p>
+      <div class="chest-opening-reward" aria-live="polite"></div>
+      <div class="chest-opening-progress"></div>
+      <div class="chest-opening-summary"></div>
+      <button class="primary-button chest-opening-continue" type="button" hidden>CONTINUAR <span>→</span></button>
+    </div>`;
+    document.body.append(overlay);
+    const stage = overlay.querySelector('.chest-opening-stage');
+    const rewardNode = overlay.querySelector('.chest-opening-reward');
+    const progressNode = overlay.querySelector('.chest-opening-progress');
+    const prompt = overlay.querySelector('.chest-opening-prompt');
+    const title = overlay.querySelector('.chest-opening-title');
+    const sprite = overlay.querySelector('.chest-opening-sprite');
+    const advance = () => {
+      if (this.chestOpening?.skipped) return;
+      this.chestOpening.index += 1;
+      if (this.chestOpening.index < rewards.length) {
+        const [rarity, count] = rewards[this.chestOpening.index];
+        stage.dataset.rarity = rarity;
+        rewardNode.innerHTML = `<div class="chest-reward-rarity" style="--reward-color:${economy.gearColors[rarity]}">${economy.gearLabels[rarity].toUpperCase()}</div><div class="chest-reward-art">${this.gearArt(rarity, 'chest-reward-sprite')}</div><strong>×${count}</strong><small>${economy.gearLabels[rarity]} · ${this.chestOpening.index + 1} / ${rewards.length}</small>`;
+        progressNode.textContent = `${rewards.length - this.chestOpening.index - 1} recompensas restantes`;
+        prompt.textContent = 'Toca para continuar';
+        title.textContent = rarity === 'legendary' ? '¡Recompensa legendaria!' : 'Recompensa obtenida';
+        stage.classList.remove('chest-reward-pop'); void stage.offsetWidth; stage.classList.add('chest-reward-pop');
+      } else finish();
+    };
+    const finish = () => {
+      if (!this.chestOpening || this.chestOpening.skipped) return;
+      this.chestOpening.skipped = true;
+      const summary = rewards.map(([rarity, count]) => `<span style="--reward-color:${economy.gearColors[rarity]}">${this.gearArt(rarity, 'summary-gear-sprite')} <b>×${count}</b> ${economy.gearLabels[rarity]}</span>`).join('');
+      rewardNode.innerHTML = '';
+      progressNode.textContent = '';
+      title.textContent = 'Recompensas aseguradas';
+      prompt.textContent = '';
+      overlay.querySelector('.chest-opening-art').classList.add('chest-opening-art-small');
+      overlay.querySelector('.chest-opening-summary').innerHTML = summary;
+      const continueButton = overlay.querySelector('.chest-opening-continue');
+      continueButton.hidden = false;
+      continueButton.focus();
+    };
+    const skip = () => { this.chestOpening.skipped = false; this.chestOpening.index = rewards.length; finish(); };
+    overlay.querySelector('.chest-skip').addEventListener('click', skip);
+    overlay.addEventListener('pointerup', (event) => { if (event.target.closest('button')) return; advance(); });
+    overlay.querySelector('.chest-opening-continue').addEventListener('click', () => {
+      this.game.economy.clearPendingChestOpening();
+      overlay.remove(); this.chestOpening = null; this.showChests();
+    });
+    sprite?.addEventListener('load', () => stage.classList.add('chest-opening-ready'));
   }
 
   showDefenses() {
@@ -567,8 +645,9 @@ export class UIManager {
     return event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
   }
 
-  towerArt(type) {
-    const src = this.spritePaths[type] || this.spritePaths.gunner;
+  towerArt(type, level = 1) {
+    const safeLevel = Math.max(1, Math.min(5, Number(level) || 1));
+    const src = this.spritePaths[`${type}-${Math.min(3, safeLevel)}`] || this.spritePaths[type] || this.spritePaths.gunner;
     return `<img class="tower-sprite" src="${src}" alt="" draggable="false" aria-hidden="true">`;
   }
 
@@ -626,7 +705,7 @@ export class UIManager {
     const shellRect = this.app.querySelector('.battle-screen').getBoundingClientRect();
     if (node.dataset.type !== run.placingType) {
       node.dataset.type = run.placingType;
-      node.innerHTML = `<div class="drag-preview-card" style="--rarity-color:${tower.rarityColor}"><span class="drag-preview-art">${this.towerArt(tower.id)}</span><strong>${tower.name}</strong><small>NV.${run.placingLevel || 1} · ${this.resourceArt('coin', 'inline-resource-sprite')}${towerCost(tower.id, run.placingLevel || 1)}</small></div>`;
+      node.innerHTML = `<div class="drag-preview-card" style="--rarity-color:${tower.rarityColor}"><span class="drag-preview-art">${this.towerArt(tower.id, run.placingLevel || 1)}</span><strong>${tower.name}</strong><small>EVOLUCIÓN ${run.placingLevel || 1} · ${this.resourceArt('coin', 'inline-resource-sprite')}${towerCost(tower.id, run.placingLevel || 1)}</small></div>`;
     }
     node.style.left = `${drag.clientX - shellRect.left}px`;
     node.style.top = `${drag.clientY - shellRect.top}px`;
@@ -885,7 +964,7 @@ export class UIManager {
   }
 
   drawSprite(ctx, key, x, y, width, height = width, alpha = 1) {
-    const image = this.sprites[key];
+    const image = this.sprites[key] || this.sprites[key.replace(/-[45]$/, '-3')] || this.sprites[key.replace(/-[23]$/, '')];
     if (!image?.naturalWidth) return false;
     const imageRatio = image.naturalWidth / image.naturalHeight;
     const boxRatio = width / height;
@@ -980,7 +1059,7 @@ export class UIManager {
       if (!directMerge) {
         ctx.fillStyle = valid ? 'rgba(97, 225, 121, .12)' : 'rgba(211, 74, 55, .12)';
         ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.setLineDash([7, 6]);
-        ctx.beginPath(); ctx.arc(run.placementPreview.x, run.placementPreview.y, GAME_CONFIG.placement.towerSeparation, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
+        ctx.beginPath(); ctx.arc(run.placementPreview.x, run.placementPreview.y, this.game.towers.getPlacementRadius(run.placingType), 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
       }
       this.drawTower(ctx, { type: run.placingType, level, x: run.placementPreview.x, y: run.placementPreview.y }, stats, false, directMerge, { scale: 1.13, lift: -8, held: true, alpha: .72 });
       if (directMerge) { const target = run.towers.find((tower) => tower.id === run.mergeTargetId); if (target) { ctx.strokeStyle = '#fff0a6'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(target.x, target.y, 31 + Math.sin(performance.now() / 130) * 3, 0, Math.PI * 2); ctx.stroke(); } }
@@ -1067,7 +1146,7 @@ export class UIManager {
     if (selected || target) { ctx.strokeStyle = target ? '#7de38b' : '#f1d889'; ctx.lineWidth = target ? 5 : 3; ctx.beginPath(); ctx.arc(0, 0, 25 + (target ? Math.sin(performance.now() / 120) * 2 : 0), 0, Math.PI * 2); ctx.stroke(); }
     ctx.fillStyle = animation.mergeable ? '#c19b4a' : 'rgba(48, 63, 38, .34)'; ctx.beginPath(); ctx.ellipse(0, 17, 22, 7, 0, 0, Math.PI * 2); ctx.fill();
     const spriteSize = 58;
-    this.drawSprite(ctx, tower.type, 0, 0, spriteSize, spriteSize, 1);
+    this.drawSprite(ctx, `${tower.type}-${Math.max(1, Number(tower.level) || 1)}`, 0, 0, spriteSize, spriteSize, 1);
     ctx.fillStyle = '#f5edc5'; ctx.font = '700 10px Arial'; ctx.textAlign = 'center'; ctx.fillText(`E${tower.level}`, 0, -27); ctx.restore();
   }
 

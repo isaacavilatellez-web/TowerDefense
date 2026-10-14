@@ -4,7 +4,9 @@ export const GAME_CONFIG = {
   map: { width: 540, height: 640, baseRadius: 30 },
   placement: {
     pathClearance: 49,
-    towerSeparation: 48,
+    // Huella estable de colocación. La separación nueva no cambia el alcance.
+    towerFootprintRadius: 24,
+    towerSeparationMultiplier: 1.25,
     edgeMargin: 28,
   },
   economy: {

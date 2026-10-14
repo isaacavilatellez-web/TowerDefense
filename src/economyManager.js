@@ -89,6 +89,8 @@ export class EconomyManager {
   gearCount(rarity) { return this.ensurePermanentState().gears[rarity] || 0; }
 
   openChest(chestId, random = Math.random) {
+    const pending = this.game.save.pendingChestOpening;
+    if (pending?.result) return { ok: false, reason: 'pending-opening', pending: pending.result };
     const chest = getChest(chestId);
     if (!chest) return { ok: false, reason: 'unknown-chest' };
     const save = this.ensurePermanentState();
@@ -98,9 +100,21 @@ export class EconomyManager {
     save.supplies -= chest.price;
     save.scrap = save.supplies;
     for (const [rarity, amount] of Object.entries(rewards)) save.gears[rarity] += amount;
+    const result = { ok: true, chest, totalValue, rewards, remainingValue: 0 };
+    // El premio ya está aplicado. Guardamos la operación para que cerrar,
+    // cambiar de pestaña o recargar sólo pueda recuperar el mismo resultado.
+    save.pendingChestOpening = { chestId, result };
     SaveSystem.save(save);
-    return { ok: true, chest, totalValue, rewards, remainingValue: 0 };
+    return result;
   }
+
+  clearPendingChestOpening() {
+    if (!this.game.save.pendingChestOpening) return;
+    this.game.save.pendingChestOpening = null;
+    SaveSystem.save(this.game.save);
+  }
+
+  getPendingChestOpening() { return this.game.save.pendingChestOpening?.result || null; }
 
   buyGear(rarity, quantity = 1) {
     const price = permanentConfig().directGearCrystalPrices[rarity];
